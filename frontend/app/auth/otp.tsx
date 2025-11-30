@@ -53,7 +53,7 @@ export default function OTPScreen() {
           router.replace({
             pathname: '/auth/register',
             params: { phone, token: response.data.token },
-          });\n        }
+          });        }
       }
     } catch (error: any) {
       console.error('Verify OTP error:', error);
