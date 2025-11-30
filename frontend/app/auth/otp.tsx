@@ -152,12 +152,12 @@ export default function OTPScreen() {
               style={styles.input}
               value={otp}
               onChangeText={setOtp}
-              placeholder="1234"
+              placeholder="123456"
               keyboardType="number-pad"
-              maxLength={4}
+              maxLength={6}
               autoFocus
             />
-            <Text style={styles.hint}>Mock OTP: 1234</Text>
+            <Text style={styles.hint}>Mock OTP: 1234 | Firebase: 6-digit code</Text>
           </View>
 
           <TouchableOpacity
