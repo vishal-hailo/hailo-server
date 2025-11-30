@@ -72,15 +72,36 @@ export default function HomeScreen() {
 
   const loadUserAndEstimates = async () => {
     try {
+      setError(null);
       const userStr = await AsyncStorage.getItem('user');
       if (userStr) {
         setUser(JSON.parse(userStr));
       }
 
-      await loadEstimate('toWork');
-      await loadEstimate('toHome');
-    } catch (error) {
+      // Check if user has locations setup
+      const locationsSetup = await AsyncStorage.getItem('locationsSetup');
+      if (!locationsSetup) {
+        setHasLocations(false);
+        setLoading(false);
+        return;
+      }
+
+      await Promise.all([
+        loadEstimate('toWork'),
+        loadEstimate('toHome')
+      ]);
+    } catch (error: any) {
       console.error('Load error:', error);
+      if (error.response?.status === 401) {
+        // Token expired
+        Alert.alert('Session Expired', 'Please login again');
+        await AsyncStorage.clear();
+        router.replace('/auth/phone');
+      } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network')) {
+        setError('No internet connection. Pull to refresh when online.');
+      } else {
+        setError('Failed to load estimates. Pull to refresh to try again.');
+      }
     } finally {
       setLoading(false);
     }
