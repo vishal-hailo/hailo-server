@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8002';
+const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8001';
 
 export default function OTPScreen() {
   const router = useRouter();
