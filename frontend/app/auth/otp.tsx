@@ -38,7 +38,7 @@ export default function OTPScreen() {
       if (response.data.token) {
         await AsyncStorage.setItem('authToken', response.data.token);
         await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
-        router.replace('/home');
+        router.replace('/(tabs)/home');
       }
     } catch (error: any) {
       console.error('Verify OTP error:', error);
