@@ -1,250 +1,103 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   Alert,
-  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
-import * as Location from 'expo-location';
+
 // API_URL from environment variable
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
-const MUMBAI_LOCATIONS = [
-  { name: 'Andheri East', lat: 19.1188, lng: 72.8913 },
-  { name: 'BKC', lat: 19.0661, lng: 72.8354 },
-  { name: 'Bandra', lat: 19.0634, lng: 72.8350 },
-  { name: 'Powai', lat: 19.1249, lng: 72.9077 },
-  { name: 'Colaba', lat: 18.9067, lng: 72.8147 },
-  { name: 'Juhu', lat: 19.0990, lng: 72.8267 },
-];
-
 export default function LocationSetupScreen() {
   const router = useRouter();
-  const [home, setHome] = useState<any>(null);
-  const [office, setOffice] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
 
-  const requestLocationPermission = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission Required',
-          'Location permission is needed to detect your current location. You can still select from preset locations.'
-        );
-        return false;
-      }
-      return true;
-    } catch (error) {
-      console.error('Permission error:', error);
-      return false;
-    }
-  };
+  useEffect(() => {
+    checkExistingLocations();
+  }, []);
 
-  const useCurrentLocation = async (type: 'home' | 'office') => {
-    const hasPermission = await requestLocationPermission();
-    if (!hasPermission) return;
-
-    setLoading(true);
-    try {
-      const location = await Location.getCurrentPositionAsync({});
-      const coords = {
-        name: 'Current Location',
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-      };
-      
-      if (type === 'home') {
-        setHome(coords);
-      } else {
-        setOffice(coords);
-      }
-    } catch (error) {
-      console.error('Location error:', error);
-      Alert.alert('Error', 'Failed to get current location');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const selectLocation = (type: 'home' | 'office', location: any) => {
-    if (type === 'home') {
-      setHome(location);
-    } else {
-      setOffice(location);
-    }
-  };
-
-  const handleContinue = async () => {
-    if (!home || !office) {
-      Alert.alert('Required', 'Please select both Home and Office locations');
-      return;
-    }
-
-    setLoading(true);
+  const checkExistingLocations = async () => {
     try {
       const token = await AsyncStorage.getItem('authToken');
+      const response = await axios.get(`${API_URL}/api/v1/locations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       
-      // Save home location
-      await axios.post(
-        `${API_URL}/api/v1/locations`,
-        {
-          type: 'HOME',
-          label: home.name,
-          address: home.name,
-          latitude: home.lat,
-          longitude: home.lng,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // Save office location
-      await axios.post(
-        `${API_URL}/api/v1/locations`,
-        {
-          type: 'OFFICE',
-          label: office.name,
-          address: office.name,
-          latitude: office.lat,
-          longitude: office.lng,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      await AsyncStorage.setItem('locationsSetup', 'true');
-      router.replace('/(tabs)/home');
+      if (response.data && response.data.length > 0) {
+        // User already has locations, skip setup
+        await AsyncStorage.setItem('locationsSetup', 'true');
+        router.replace('/(tabs)/home');
+      }
     } catch (error) {
-      console.error('Save locations error:', error);
-      Alert.alert('Error', 'Failed to save locations. Please try again.');
+      console.error('Check locations error:', error);
     } finally {
-      setLoading(false);
+      setChecking(false);
     }
   };
 
-  const handleSkip = () => {
-    Alert.alert(
-      'Skip Setup',
-      'You can add locations later in Settings',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Skip',
-          onPress: () => router.replace('/(tabs)/home'),
-        },
-      ]
-    );
+  const handleSetupLater = async () => {
+    await AsyncStorage.setItem('locationsSetup', 'true');
+    router.replace('/(tabs)/home');
   };
+
+  const handleAddLocations = () => {
+    router.push('/locations-manager');
+  };
+
+  if (checking) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF6B35" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Set Your Locations</Text>
-          <Text style={styles.subtitle}>Quick access to daily commutes</Text>
+      <View style={styles.content}>
+        <View style={styles.iconContainer}>
+          <Ionicons name="location" size={80} color="#FF6B35" />
         </View>
 
-        {/* Home Location */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="home" size={24} color="#FF6B35" />
-            <Text style={styles.sectionTitle}>Home</Text>
+        <Text style={styles.title}>Set Up Your Locations</Text>
+        <Text style={styles.subtitle}>
+          Add your frequently visited places like Home and Office to get quick commute estimates and smart surge alerts.
+        </Text>
+
+        <View style={styles.features}>
+          <View style={styles.feature}>
+            <Ionicons name="home" size={24} color="#10B981" />
+            <Text style={styles.featureText}>Save unlimited locations</Text>
           </View>
-          
-          {home ? (
-            <View style={styles.selectedCard}>
-              <Text style={styles.selectedText}>{home.name}</Text>
-              <TouchableOpacity onPress={() => setHome(null)}>
-                <Ionicons name="close-circle" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              <TouchableOpacity
-                style={styles.currentLocationButton}
-                onPress={() => useCurrentLocation('home')}
-              >
-                <Ionicons name="locate" size={20} color="#FF6B35" />
-                <Text style={styles.currentLocationText}>Use Current Location</Text>
-              </TouchableOpacity>
-              
-              <View style={styles.locationGrid}>
-                {MUMBAI_LOCATIONS.map((loc, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.locationButton}
-                    onPress={() => selectLocation('home', loc)}
-                  >
-                    <Text style={styles.locationButtonText}>{loc.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* Office Location */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="briefcase" size={24} color="#6B46C1" />
-            <Text style={styles.sectionTitle}>Office</Text>
+          <View style={styles.feature}>
+            <Ionicons name="navigate" size={24} color="#3B82F6" />
+            <Text style={styles.featureText}>Auto-detect current location</Text>
           </View>
-          
-          {office ? (
-            <View style={styles.selectedCard}>
-              <Text style={styles.selectedText}>{office.name}</Text>
-              <TouchableOpacity onPress={() => setOffice(null)}>
-                <Ionicons name="close-circle" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              <TouchableOpacity
-                style={styles.currentLocationButton}
-                onPress={() => useCurrentLocation('office')}
-              >
-                <Ionicons name="locate" size={20} color="#6B46C1" />
-                <Text style={styles.currentLocationText}>Use Current Location</Text>
-              </TouchableOpacity>
-              
-              <View style={styles.locationGrid}>
-                {MUMBAI_LOCATIONS.map((loc, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.locationButton}
-                    onPress={() => selectLocation('office', loc)}
-                  >
-                    <Text style={styles.locationButtonText}>{loc.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          )}
+          <View style={styles.feature}>
+            <Ionicons name="time" size={24} color="#F59E0B" />
+            <Text style={styles.featureText}>Get real-time estimates</Text>
+          </View>
         </View>
 
-        <View style={styles.buttons}>
-          <TouchableOpacity
-            style={[styles.continueButton, (!home || !office) && styles.buttonDisabled]}
-            onPress={handleContinue}
-            disabled={!home || !office || loading}
-          >
-            <Text style={styles.continueButtonText}>
-              {loading ? 'Saving...' : 'Continue'}
-            </Text>
-          </TouchableOpacity>
+        <TouchableOpacity style={styles.primaryButton} onPress={handleAddLocations}>
+          <Text style={styles.primaryButtonText}>Add Locations Now</Text>
+        </TouchableOpacity>
 
-          <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-            <Text style={styles.skipButtonText}>Skip for now</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+        <TouchableOpacity style={styles.secondaryButton} onPress={handleSetupLater}>
+          <Text style={styles.secondaryButtonText}>Skip for Now</Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -254,108 +107,75 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F3F4F6',
   },
-  scrollView: {
+  loadingContainer: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  header: {
-    padding: 24,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 18,
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
     color: '#6B7280',
   },
-  section: {
-    paddingHorizontal: 24,
+  content: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'center',
+  },
+  iconContainer: {
+    alignItems: 'center',
     marginBottom: 32,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    textAlign: 'center',
     marginBottom: 16,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  selectedCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    padding: 16,
-  },
-  selectedText: {
+  subtitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  currentLocationButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
-  },
-  currentLocationText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  locationGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  locationButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  locationButtonText: {
-    fontSize: 14,
     color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 40,
   },
-  buttons: {
-    padding: 24,
+  features: {
+    marginBottom: 40,
   },
-  continueButton: {
+  feature: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+  },
+  featureText: {
+    fontSize: 16,
+    color: '#1F2937',
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  primaryButton: {
     backgroundColor: '#FF6B35',
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     marginBottom: 12,
   },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  continueButtonText: {
+  primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
   },
-  skipButton: {
-    padding: 12,
+  secondaryButton: {
+    padding: 16,
     alignItems: 'center',
   },
-  skipButtonText: {
-    fontSize: 16,
+  secondaryButtonText: {
     color: '#6B7280',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
