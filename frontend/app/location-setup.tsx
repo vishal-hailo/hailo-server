@@ -14,7 +14,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { API_URL } from './utils/api';
+// API_URL from environment variable
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 const MUMBAI_LOCATIONS = [
   { name: 'Andheri East', lat: 19.1188, lng: 72.8913 },
