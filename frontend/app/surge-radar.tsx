@@ -108,40 +108,31 @@ export default function SurgeRadarScreen() {
 
         {surgeData && (
           <>
-            {/* Chart */}
+            {/* Simple Bar Chart */}
             <View style={styles.chartContainer}>
-              <VictoryChart
-                height={300}
-                width={width - 48}
-                domainPadding={{ x: 20 }}
-              >
-                <VictoryAxis
-                  style={{
-                    axis: { stroke: '#E5E7EB' },
-                    tickLabels: { fontSize: 12, fill: '#6B7280' },
-                  }}
-                />
-                <VictoryAxis
-                  dependentAxis
-                  style={{
-                    axis: { stroke: '#E5E7EB' },
-                    tickLabels: { fontSize: 12, fill: '#6B7280' },
-                    grid: { stroke: '#F3F4F6' },
-                  }}
-                />
-                <VictoryBar
-                  data={surgeData.buckets.map((bucket: any) => ({
-                    x: bucket.label,
-                    y: bucket.estimate,
-                    fill: getColorForBucket(bucket.color),
-                  }))}
-                  style={{
-                    data: {
-                      fill: ({ datum }) => datum.fill,
-                    },
-                  }}
-                />
-              </VictoryChart>
+              <Text style={styles.chartTitle}>30-Minute Price Forecast</Text>
+              <View style={styles.chart}>
+                {surgeData.buckets.map((bucket: any, index: number) => {
+                  const maxPrice = Math.max(...surgeData.buckets.map((b: any) => b.estimate));
+                  const heightPercent = (bucket.estimate / maxPrice) * 100;
+                  
+                  return (
+                    <View key={index} style={styles.barContainer}>
+                      <Text style={styles.barPrice}>₹{bucket.estimate}</Text>
+                      <View
+                        style={[
+                          styles.bar,
+                          {
+                            height: `${heightPercent}%`,
+                            backgroundColor: getColorForBucket(bucket.color),
+                          },
+                        ]}
+                      />
+                      <Text style={styles.barLabel}>{bucket.label}</Text>
+                    </View>
+                  );
+                })}
+              </View>
             </View>
 
             {/* Best Time */}
