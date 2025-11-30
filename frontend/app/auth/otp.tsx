@@ -13,76 +13,22 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { auth } from '../../firebaseConfig';
 
 const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8002';
 
 export default function OTPScreen() {
   const router = useRouter();
-  const { phone, useFirebase } = useLocalSearchParams();
+  const { phone } = useLocalSearchParams();
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleVerifyFirebase = async () => {
-    try {
-      // Get the confirmation result from global storage
-      const confirmationResult = globalThis.firebaseConfirmationResult;
-      
-      if (!confirmationResult) {
-        throw new Error('Firebase confirmation not found. Please request OTP again.');
-      }
-
-      // Confirm the OTP code
-      const userCredential = await confirmationResult.confirm(otp);
-      console.log('Firebase OTP verified successfully');
-
-      // Get Firebase ID token
-      const idToken = await userCredential.user.getIdToken();
-      console.log('Got Firebase ID token');
-
-      // Send token to our backend
-      const response = await axios.post(`${API_URL}/api/v1/auth/firebase-login`, {
-        firebaseIdToken: idToken,
-      });
-
-      if (response.data.token) {
-        await AsyncStorage.setItem('authToken', response.data.token);
-        
-        // Check if user has a name (existing user) or needs registration
-        if (response.data.user.name) {
-          await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
-          // Check if locations are setup
-          const locationsSetup = await AsyncStorage.getItem('locationsSetup');
-          if (locationsSetup) {
-            router.replace('/(tabs)/home');
-          } else {
-            router.replace('/location-setup');
-          }
-        } else {
-          // New user - go to registration
-          router.replace({
-            pathname: '/auth/register',
-            params: { phone, token: response.data.token },
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Firebase OTP verification error:', error);
-      
-      let errorMessage = 'Invalid or expired code. ';
-      if (error.code === 'auth/invalid-verification-code') {
-        errorMessage = 'Invalid verification code. Please try again.';
-      } else if (error.code === 'auth/code-expired') {
-        errorMessage = 'Verification code expired. Please request a new code.';
-      } else {
-        errorMessage += error.message || 'Please try again.';
-      }
-      
-      Alert.alert('Error', errorMessage);
+  const handleVerify = async () => {
+    if (otp.length !== 4) {
+      Alert.alert('Invalid OTP', 'Please enter the 4-digit OTP');
+      return;
     }
-  };
 
-  const handleVerifyMock = async () => {
+    setLoading(true);
     try {
       const response = await axios.post(`${API_URL}/api/v1/auth/verify-otp`, {
         phone,
@@ -108,26 +54,9 @@ export default function OTPScreen() {
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Verify OTP error:', error);
       Alert.alert('Error', error.response?.data?.error || 'Invalid OTP. Please try again.');
-    }
-  };
-
-  const handleVerify = async () => {
-    if (otp.length !== 6 && otp.length !== 4) {
-      Alert.alert('Invalid OTP', 'Please enter the verification code');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Use Firebase verification if useFirebase param is present
-      if (useFirebase === 'true') {
-        await handleVerifyFirebase();
-      } else {
-        await handleVerifyMock();
-      }
     } finally {
       setLoading(false);
     }
