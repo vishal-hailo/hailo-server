@@ -1,16 +1,38 @@
-import { Text, View, StyleSheet, Image } from "react-native";
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, Image } from 'react-native';
+import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+export default function SplashScreen() {
+  const router = useRouter();
 
-export default function Index() {
-  console.log(EXPO_PUBLIC_BACKEND_URL, "EXPO_PUBLIC_BACKEND_URL");
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  const checkAuth = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      setTimeout(() => {
+        if (token) {
+          router.replace('/home');
+        } else {
+          router.replace('/auth/phone');
+        }
+      }, 2000);
+    } catch (error) {
+      console.error('Auth check error:', error);
+      router.replace('/auth/phone');
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <Image
-        source={require("../assets/images/app-image.png")}
-        style={styles.image}
-      />
+      <View style={styles.logoContainer}>
+        <Text style={styles.logo}>HailO</Text>
+        <Text style={styles.tagline}>Mumbai's Commute Genius</Text>
+      </View>
+      <Text style={styles.version}>v1.0.0</Text>
     </View>
   );
 }
@@ -18,13 +40,29 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0c0c0c",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#FF6B35',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  image: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "contain",
+  logoContainer: {
+    alignItems: 'center',
+  },
+  logo: {
+    fontSize: 64,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  tagline: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    opacity: 0.9,
+  },
+  version: {
+    position: 'absolute',
+    bottom: 40,
+    fontSize: 14,
+    color: '#FFFFFF',
+    opacity: 0.7,
   },
 });
