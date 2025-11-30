@@ -187,9 +187,40 @@ export default function HomeScreen() {
     return '🔴';
   };
 
+  // Empty state when no locations
+  if (!loading && !hasLocations) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView style={styles.scrollView} contentContainerStyle={styles.emptyContainer}>
+          <Ionicons name="location-outline" size={80} color="#6B7280" />
+          <Text style={styles.emptyTitle}>Add Your Locations</Text>
+          <Text style={styles.emptyText}>
+            Set your Home and Office locations to get started with smart commute tracking
+          </Text>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => router.push('/location-setup')}
+          >
+            <Text style={styles.primaryButtonText}>Add Locations</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#FF6B35']}
+            tintColor="#FF6B35"
+          />
+        }
+      >
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>
