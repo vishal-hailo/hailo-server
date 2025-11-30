@@ -13,16 +13,20 @@ export default function SplashScreen() {
   const checkAuth = async () => {
     try {
       const token = await AsyncStorage.getItem('authToken');
+      const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
+      
       setTimeout(() => {
         if (token) {
-          router.replace('/home');
-        } else {
+          router.replace('/(tabs)/home');
+        } else if (onboardingCompleted) {
           router.replace('/auth/phone');
+        } else {
+          router.replace('/onboarding');
         }
       }, 2000);
     } catch (error) {
       console.error('Auth check error:', error);
-      router.replace('/auth/phone');
+      router.replace('/onboarding');
     }
   };
 
