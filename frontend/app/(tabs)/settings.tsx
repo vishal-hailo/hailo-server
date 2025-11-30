@@ -28,8 +28,20 @@ export default function SettingsScreen() {
           text: 'Logout',
           style: 'destructive',
           onPress: async () => {
-            await AsyncStorage.clear();
-            router.replace('/auth/phone');
+            try {
+              // Clear all app data
+              await AsyncStorage.multiRemove([
+                'authToken',
+                'user',
+                'locationsSetup',
+                'onboardingCompleted'
+              ]);
+              // Navigate to auth
+              router.replace('/auth/phone');
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Error', 'Failed to logout');
+            }
           },
         },
       ]
