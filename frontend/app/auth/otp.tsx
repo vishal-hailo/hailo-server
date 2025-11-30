@@ -26,7 +26,7 @@ export default function OTPScreen() {
   const handleVerifyFirebase = async () => {
     try {
       // Get the confirmation result from global storage
-      const confirmationResult = (globalThis as any).firebaseConfirmationResult;
+      const confirmationResult = (globalThis as any)['firebaseConfirmationResult'];
       
       if (!confirmationResult) {
         throw new Error('Firebase confirmation not found. Please request OTP again.');
