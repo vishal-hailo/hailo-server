@@ -12,10 +12,19 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
-import Constants from 'expo-constants';
 
-// Use direct localhost for Node.js backend on port 8002
-const API_URL = 'http://localhost:8002';
+// Detect environment and use appropriate API URL
+const getApiUrl = () => {
+  // @ts-ignore - web only
+  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    // On web, use relative path which will be proxied
+    return '';
+  }
+  // On native, use localhost (works in emulator/simulator)
+  return 'http://localhost:8002';
+};
+
+const API_URL = getApiUrl();
 
 export default function PhoneScreen() {
   const router = useRouter();
