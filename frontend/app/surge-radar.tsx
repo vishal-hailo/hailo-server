@@ -14,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import Constants from 'expo-constants';
-import { VictoryBar, VictoryChart, VictoryAxis } from 'victory-native';
 
 const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8002';
 const { width } = Dimensions.get('window');
