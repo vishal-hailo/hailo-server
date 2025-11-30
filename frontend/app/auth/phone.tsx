@@ -12,10 +12,10 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
+import Constants from 'expo-constants';
 
-// Use empty string for web (relative URLs, proxied to port 8001)
-// Use localhost:8002 for native (Expo Go on Android/iOS)
-const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8002';
+// Get backend URL from environment variable
+const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 export default function PhoneScreen() {
   const router = useRouter();
