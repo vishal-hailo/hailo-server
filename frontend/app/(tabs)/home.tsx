@@ -31,12 +31,27 @@ export default function HomeScreen() {
   const [goToWorkEstimate, setGoToWorkEstimate] = useState<any>(null);
   const [goHomeEstimate, setGoHomeEstimate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasLocations, setHasLocations] = useState(true);
   const [pulseAnim] = useState(new Animated.Value(1));
 
   useEffect(() => {
     loadUserAndEstimates();
     startPulseAnimation();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserAndEstimates();
+    }, [])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadUserAndEstimates();
+    setRefreshing(false);
+  };
 
   const startPulseAnimation = () => {
     Animated.loop(
