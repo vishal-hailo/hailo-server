@@ -13,7 +13,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { API_URL } from '../utils/api';
+
+// API_URL from environment variable
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -29,15 +31,17 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      // Save user data
-      const user = { phone, name: name.trim() };
-      await AsyncStorage.setItem('user', JSON.stringify(user));
-      
-      // Navigate to location setup
+      const response = await axios.post(
+        `${API_URL}/api/v1/me/update`,
+        { name: name.trim() },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      await AsyncStorage.setItem('user', JSON.stringify(response.data));
       router.replace('/location-setup');
     } catch (error) {
-      console.error('Registration error:', error);
-      Alert.alert('Error', 'Failed to save your information');
+      console.error('Register error:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -50,8 +54,8 @@ export default function RegisterScreen() {
         style={styles.keyboardView}
       >
         <View style={styles.content}>
-          <Text style={styles.title}>Welcome to HailO!</Text>
-          <Text style={styles.subtitle}>Let's personalize your experience</Text>
+          <Text style={styles.title}>Welcome to HailO</Text>
+          <Text style={styles.subtitle}>What should we call you?</Text>
 
           <View style={styles.form}>
             <Text style={styles.label}>Your Name</Text>
@@ -59,11 +63,9 @@ export default function RegisterScreen() {
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Enter your name"
+              placeholder="Priya Sharma"
               autoFocus
-              autoCapitalize="words"
             />
-            <Text style={styles.hint}>We'll use this to personalize your experience</Text>
           </View>
 
           <TouchableOpacity
@@ -121,11 +123,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     borderWidth: 2,
     borderColor: '#E5E7EB',
-  },
-  hint: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 8,
   },
   button: {
     backgroundColor: '#FF6B35',
