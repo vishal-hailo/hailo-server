@@ -11,16 +11,29 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import axios from 'axios';
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { auth } from '../../firebaseConfig';
 
-// Use empty string for web (relative URLs, proxied to port 8001)
-// Use localhost:8002 for native (Expo Go on Android/iOS)
-const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8002';
-
-export default function PhoneScreen() {
+export default function PhoneFirebaseScreen() {
   const router = useRouter();
   const [phone, setPhone] = useState('+91');
   const [loading, setLoading] = useState(false);
+
+  const setupRecaptcha = () => {
+    if (Platform.OS === 'web') {
+      // For web, setup reCAPTCHA
+      if (!(window as any).recaptchaVerifier) {
+        (window as any).recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {
+            console.log('reCAPTCHA solved');
+          },
+        });
+      }
+      return (window as any).recaptchaVerifier;
+    }
+    return null;
+  };
 
   const handleContinue = async () => {
     if (phone.length < 13) {
@@ -28,40 +41,45 @@ export default function PhoneScreen() {
       return;
     }
 
-    console.log('Attempting to send OTP to:', phone);
-    console.log('API URL:', API_URL);
     setLoading(true);
-    
     try {
-      console.log('Making request to:', `${API_URL}/api/v1/auth/request-otp`);
-      const response = await axios.post(`${API_URL}/api/v1/auth/request-otp`, { phone }, {
-        timeout: 10000, // 10 second timeout
-      });
-      console.log('OTP Response:', response.data);
+      console.log('Sending OTP to:', phone);
       
-      if (response.data.success) {
-        console.log('OTP sent successfully, navigating to OTP screen');
-        router.push({ pathname: '/auth/otp', params: { phone } });
-      } else {
-        Alert.alert('Error', 'Failed to send OTP. Please try again.');
-      }
-    } catch (error: any) {
-      console.error('Request OTP error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
+      // Setup reCAPTCHA for web
+      const recaptchaVerifier = setupRecaptcha();
+      
+      // Send OTP via Firebase
+      const confirmationResult = await signInWithPhoneNumber(
+        auth,
+        phone,
+        recaptchaVerifier
+      );
+      
+      console.log('OTP sent successfully');
+      
+      // Store confirmation result globally for OTP screen
+      (globalThis as any).firebaseConfirmationResult = confirmationResult;
+      
+      // Navigate to OTP screen
+      router.push({ 
+        pathname: '/auth/otp',
+        params: { phone, useFirebase: 'true' }
       });
+    } catch (error: any) {
+      console.error('Send OTP error:', error);
       
       let errorMessage = 'Failed to send OTP. ';
-      if (error.code === 'ECONNABORTED') {
-        errorMessage += 'Request timed out.';
-      } else if (error.response) {
-        errorMessage += error.response.data?.error || 'Server error.';
-      } else if (error.request) {
-        errorMessage += 'Cannot reach server. Check your connection.';
+      
+      if (error.code === 'auth/invalid-phone-number') {
+        errorMessage = 'Invalid phone number format.';
+      } else if (error.code === 'auth/missing-phone-number') {
+        errorMessage = 'Please enter a phone number.';
+      } else if (error.code === 'auth/quota-exceeded') {
+        errorMessage = 'SMS quota exceeded. Please try again later.';
+      } else if (error.code === 'auth/too-many-requests') {
+        errorMessage = 'Too many requests. Please try again later.';
       } else {
-        errorMessage += error.message;
+        errorMessage += error.message || 'Please check your number and try again.';
       }
       
       Alert.alert('Error', errorMessage);
@@ -91,7 +109,8 @@ export default function PhoneScreen() {
               maxLength={13}
               autoFocus
             />
-            <Text style={styles.hint}>We'll send you an OTP for verification</Text>
+            <Text style={styles.hint}>We'll send you a real SMS with verification code</Text>
+            <Text style={styles.firebaseBadge}>🔐 Secured by Firebase Phone Auth</Text>
           </View>
 
           <TouchableOpacity
@@ -100,9 +119,12 @@ export default function PhoneScreen() {
             disabled={loading}
           >
             <Text style={styles.buttonText}>
-              {loading ? 'Sending...' : 'Continue'}
+              {loading ? 'Sending OTP...' : 'Send OTP'}
             </Text>
           </TouchableOpacity>
+          
+          {/* Invisible reCAPTCHA container for web */}
+          {Platform.OS === 'web' && <div id="recaptcha-container"></div>}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -154,6 +176,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     marginTop: 8,
+  },
+  firebaseBadge: {
+    fontSize: 12,
+    color: '#10B981',
+    marginTop: 4,
+    fontWeight: '600',
   },
   button: {
     backgroundColor: '#FF6B35',
