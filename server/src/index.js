@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
+import firebaseAuthRoutes from './routes/firebase-auth.js';
 import locationRoutes from './routes/locations.js';
 import commuteRoutes from './routes/commute.js';
 import insightsRoutes from './routes/insights.js';
@@ -21,12 +22,14 @@ app.get('/api/v1/health', (req, res) => {
     status: 'OK', 
     app: process.env.APP_NAME,
     version: process.env.APP_VERSION,
-    uberMode: process.env.UBER_MOCK === 'true' ? 'MOCK' : 'REAL'
+    uberMode: process.env.UBER_MOCK === 'true' ? 'MOCK' : 'REAL',
+    firebaseAuth: 'enabled'
   });
 });
 
 // Routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/auth', firebaseAuthRoutes); // Firebase Phone Auth routes
 app.use('/api/v1/locations', locationRoutes);
 app.use('/api/v1/commute', commuteRoutes);
 app.use('/api/v1/insights', insightsRoutes);
