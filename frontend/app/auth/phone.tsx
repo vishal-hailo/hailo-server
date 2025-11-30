@@ -104,8 +104,8 @@ export default function PhoneFirebaseScreen() {
               style={styles.input}
               value={phone}
               onChangeText={setPhone}
-              placeholder=\"+91XXXXXXXXXX\"
-              keyboardType=\"phone-pad\"
+              placeholder="+91XXXXXXXXXX"
+              keyboardType="phone-pad"
               maxLength={13}
               autoFocus
             />
@@ -124,7 +124,7 @@ export default function PhoneFirebaseScreen() {
           </TouchableOpacity>
           
           {/* Invisible reCAPTCHA container for web */}
-          {Platform.OS === 'web' && <div id=\"recaptcha-container\"></div>}
+          {Platform.OS === 'web' && <div id="recaptcha-container"></div>}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
