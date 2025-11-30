@@ -66,7 +66,7 @@ export default function OTPScreen() {
           });
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Firebase OTP verification error:', error);
       
       let errorMessage = 'Invalid or expired code. ';
@@ -108,7 +108,7 @@ export default function OTPScreen() {
           });
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Verify OTP error:', error);
       Alert.alert('Error', error.response?.data?.error || 'Invalid OTP. Please try again.');
     }
