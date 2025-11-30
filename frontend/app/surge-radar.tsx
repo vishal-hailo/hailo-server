@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import Constants from 'expo-constants';
 
-const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8002';
+const API_URL = 'http://localhost:8002';
 const { width } = Dimensions.get('window');
 
 export default function SurgeRadarScreen() {
