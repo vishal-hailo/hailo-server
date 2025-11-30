@@ -228,6 +228,43 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
   },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  chart: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-end',
+    height: 200,
+    paddingHorizontal: 8,
+  },
+  barContainer: {
+    flex: 1,
+    alignItems: 'center',
+    marginHorizontal: 2,
+  },
+  bar: {
+    width: '80%',
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    minHeight: 20,
+  },
+  barLabel: {
+    fontSize: 10,
+    color: '#6B7280',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  barPrice: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
   bestTimeCard: {
     backgroundColor: '#10B981',
     borderRadius: 16,
