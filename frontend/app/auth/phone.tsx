@@ -12,10 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
-import Constants from 'expo-constants';
-
-// Get backend URL from environment variable
-const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL || '';
+import { API_URL } from '@/utils/api';
 
 export default function PhoneScreen() {
   const router = useRouter();
