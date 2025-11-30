@@ -15,11 +15,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { auth } from '../../firebaseConfig';
 
-// Extend global interface for Firebase confirmation result
-declare global {
-  var firebaseConfirmationResult: any;
-}
-
 const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8001';
 
 export default function OTPScreen() {
