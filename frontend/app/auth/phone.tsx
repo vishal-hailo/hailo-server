@@ -58,7 +58,7 @@ export default function PhoneFirebaseScreen() {
       console.log('OTP sent successfully');
       
       // Store confirmation result globally for OTP screen
-      (global as any).firebaseConfirmationResult = confirmationResult;
+      (globalThis as any).firebaseConfirmationResult = confirmationResult;
       
       // Navigate to OTP screen
       router.push({ 
