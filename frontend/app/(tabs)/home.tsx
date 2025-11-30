@@ -17,8 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
-
-const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8002';
+import { API_URL } from '@/utils/api';
 
 const TEST_LOCATIONS = {
   home: { id: 'home', label: 'Andheri East', latitude: 19.1188, longitude: 72.8913 },

@@ -14,8 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8002';
+import { API_URL } from '@/utils/api';
 
 // Quick location presets for Mumbai
 const QUICK_LOCATIONS = [
