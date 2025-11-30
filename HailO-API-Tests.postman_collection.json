@@ -1,0 +1,228 @@
+{
+  "info": {
+    "name": "HailO API Tests",
+    "description": "Complete API test suite for HailO backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8002/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "phone",
+      "value": "+919876543210",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Auth - Request OTP",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"OTP sent successfully\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"{{phone}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/auth/request-otp",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "request-otp"]
+        }
+      }
+    },
+    {
+      "name": "Auth - Verify OTP",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Token received\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.token).to.exist;",
+              "    pm.collectionVariables.set(\"token\", jsonData.token);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"otp\": \"1234\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/auth/verify-otp",
+          "host": ["{{base_url}}"],
+          "path": ["auth", "verify-otp"]
+        }
+      }
+    },
+    {
+      "name": "Get User Profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/me",
+          "host": ["{{base_url}}"],
+          "path": ["me"]
+        }
+      }
+    },
+    {
+      "name": "Commute - Search (Andheri to BKC)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mode\": \"EXPLORER\",\n  \"origin\": {\n    \"latitude\": 19.1188,\n    \"longitude\": 72.8913\n  },\n  \"destination\": {\n    \"latitude\": 19.0661,\n    \"longitude\": 72.8354\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/commute/search",
+          "host": ["{{base_url}}"],
+          "path": ["commute", "search"]
+        }
+      }
+    },
+    {
+      "name": "Commute - Surge Radar",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"origin\": {\n    \"latitude\": 19.1188,\n    \"longitude\": 72.8913\n  },\n  \"destination\": {\n    \"latitude\": 19.0661,\n    \"longitude\": 72.8354\n  },\n  \"durationMinutes\": 30\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/commute/surge-radar",
+          "host": ["{{base_url}}"],
+          "path": ["commute", "surge-radar"]
+        }
+      }
+    },
+    {
+      "name": "Insights - Get Summary (7 days)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/insights/summary?period=7d",
+          "host": ["{{base_url}}"],
+          "path": ["insights", "summary"],
+          "query": [
+            {
+              "key": "period",
+              "value": "7d"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Insights - Export CSV",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/insights/export?period=30d",
+          "host": ["{{base_url}}"],
+          "path": ["insights", "export"],
+          "query": [
+            {
+              "key": "period",
+              "value": "30d"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
