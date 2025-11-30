@@ -14,8 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from 'axios';
 
 // Use empty string for web (relative URLs, proxied to port 8001)
-// Use localhost:8001 for native (Expo Go on Android/iOS)
-const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8001';
+// Use localhost:8002 for native (Expo Go on Android/iOS)
+const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8002';
 
 export default function PhoneScreen() {
   const router = useRouter();

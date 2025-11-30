@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { auth } from '../../firebaseConfig';
 
-const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8001';
+const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8002';
 
 export default function OTPScreen() {
   const router = useRouter();

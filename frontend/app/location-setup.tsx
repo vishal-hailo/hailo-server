@@ -15,7 +15,7 @@ import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 
-const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8001';
+const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8002';
 
 const MUMBAI_LOCATIONS = [
   { name: 'Andheri East', lat: 19.1188, lng: 72.8913 },

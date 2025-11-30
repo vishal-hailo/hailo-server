@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 
-const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8001';
+const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8002';
 const { width } = Dimensions.get('window');
 
 export default function InsightsScreen() {
