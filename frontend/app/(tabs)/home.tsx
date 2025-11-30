@@ -7,49 +7,42 @@ import {
   ScrollView,
   Alert,
   Linking,
-  Platform,
   Animated,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
+
 // API_URL from environment variable
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-
-const TEST_LOCATIONS = {
-  home: { id: 'home', label: 'Andheri East', latitude: 19.1188, longitude: 72.8913 },
-  office: { id: 'office', label: 'BKC Tech Park', latitude: 19.0661, longitude: 72.8354 },
-};
 
 export default function HomeScreen() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [goToWorkEstimate, setGoToWorkEstimate] = useState<any>(null);
-  const [goHomeEstimate, setGoHomeEstimate] = useState<any>(null);
+  const [locations, setLocations] = useState([]);
+  const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasLocations, setHasLocations] = useState(true);
   const [pulseAnim] = useState(new Animated.Value(1));
 
   useEffect(() => {
-    loadUserAndEstimates();
+    loadData();
     startPulseAnimation();
   }, []);
 
   useFocusEffect(
     React.useCallback(() => {
-      loadUserAndEstimates();
+      loadData();
     }, [])
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadUserAndEstimates();
+    await loadData();
     setRefreshing(false);
   };
 
@@ -70,7 +63,7 @@ export default function HomeScreen() {
     ).start();
   };
 
-  const loadUserAndEstimates = async () => {
+  const loadData = async () => {
     try {
       setError(null);
       const userStr = await AsyncStorage.getItem('user');
@@ -78,61 +71,128 @@ export default function HomeScreen() {
         setUser(JSON.parse(userStr));
       }
 
-      // Check if user has locations setup
-      const locationsSetup = await AsyncStorage.getItem('locationsSetup');
-      if (!locationsSetup) {
-        setHasLocations(false);
+      // Load user's saved locations
+      const token = await AsyncStorage.getItem('authToken');
+      const locationsResponse = await axios.get(`${API_URL}/api/v1/locations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const userLocations = locationsResponse.data || [];
+      setLocations(userLocations);
+
+      if (userLocations.length === 0) {
         setLoading(false);
         return;
       }
 
-      await Promise.all([
-        loadEstimate('toWork'),
-        loadEstimate('toHome')
-      ]);
+      // Generate common routes from saved locations
+      await generateRoutes(userLocations);
+
     } catch (error: any) {
       console.error('Load error:', error);
       if (error.response?.status === 401) {
-        // Token expired
         Alert.alert('Session Expired', 'Please login again');
         await AsyncStorage.clear();
         router.replace('/auth/phone');
       } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network')) {
         setError('No internet connection. Pull to refresh when online.');
       } else {
-        setError('Failed to load estimates. Pull to refresh to try again.');
+        setError('Failed to load data. Pull to refresh to try again.');
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const loadEstimate = async (type: 'toWork' | 'toHome') => {
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      const origin = type === 'toWork' ? TEST_LOCATIONS.home : TEST_LOCATIONS.office;
-      const dest = type === 'toWork' ? TEST_LOCATIONS.office : TEST_LOCATIONS.home;
+  const generateRoutes = async (userLocations: any[]) => {
+    const token = await AsyncStorage.getItem('authToken');
+    const generatedRoutes = [];
 
-      const response = await axios.post(
-        `${API_URL}/api/v1/commute/search`,
-        {
-          mode: 'EXPLORER',
-          origin: { latitude: origin.latitude, longitude: origin.longitude },
-          destination: { latitude: dest.latitude, longitude: dest.longitude },
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+    // Find Home and Office locations
+    const homeLocation = userLocations.find(loc => loc.type === 'HOME');
+    const officeLocation = userLocations.find(loc => loc.type === 'OFFICE');
 
-      if (type === 'toWork') {
-        setGoToWorkEstimate(response.data);
-      } else {
-        setGoHomeEstimate(response.data);
+    // If both Home and Office exist, create bidirectional routes
+    if (homeLocation && officeLocation) {
+      // Home to Office
+      try {
+        const toWorkResponse = await axios.post(
+          `${API_URL}/api/v1/commute/search`,
+          {
+            mode: 'EXPLORER',
+            origin: { latitude: homeLocation.latitude, longitude: homeLocation.longitude },
+            destination: { latitude: officeLocation.latitude, longitude: officeLocation.longitude },
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        generatedRoutes.push({
+          id: 'home-to-office',
+          title: 'Go to Work',
+          from: homeLocation,
+          to: officeLocation,
+          estimate: toWorkResponse.data,
+          icon: 'briefcase',
+        });
+      } catch (error) {
+        console.error('Load home-to-office estimate error:', error);
       }
-    } catch (error) {
-      console.error('Load estimate error:', error);
+
+      // Office to Home
+      try {
+        const toHomeResponse = await axios.post(
+          `${API_URL}/api/v1/commute/search`,
+          {
+            mode: 'EXPLORER',
+            origin: { latitude: officeLocation.latitude, longitude: officeLocation.longitude },
+            destination: { latitude: homeLocation.latitude, longitude: homeLocation.longitude },
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        generatedRoutes.push({
+          id: 'office-to-home',
+          title: 'Go Home',
+          from: officeLocation,
+          to: homeLocation,
+          estimate: toHomeResponse.data,
+          icon: 'home',
+        });
+      } catch (error) {
+        console.error('Load office-to-home estimate error:', error);
+      }
     }
+
+    // Add other common routes (first 3 OTHER locations)
+    const otherLocations = userLocations.filter(loc => loc.type === 'OTHER').slice(0, 3);
+    if (homeLocation) {
+      for (const otherLoc of otherLocations) {
+        try {
+          const response = await axios.post(
+            `${API_URL}/api/v1/commute/search`,
+            {
+              mode: 'EXPLORER',
+              origin: { latitude: homeLocation.latitude, longitude: homeLocation.longitude },
+              destination: { latitude: otherLoc.latitude, longitude: otherLoc.longitude },
+            },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+
+          generatedRoutes.push({
+            id: `home-to-${otherLoc.id}`,
+            title: `To ${otherLoc.label}`,
+            from: homeLocation,
+            to: otherLoc,
+            estimate: response.data,
+            icon: 'location',
+          });
+        } catch (error) {
+          console.error(`Load route to ${otherLoc.label} error:`, error);
+        }
+      }
+    }
+
+    setRoutes(generatedRoutes);
   };
 
   const handleSmartBook = async (estimate: any) => {
@@ -149,7 +209,6 @@ export default function HomeScreen() {
       const supported = await Linking.canOpenURL(estimate.deepLinkUrl);
       if (supported) {
         await Linking.openURL(estimate.deepLinkUrl);
-        router.push('/success');
       } else {
         Alert.alert('Error', 'Cannot open Uber app. Please install Uber.');
       }
@@ -159,17 +218,15 @@ export default function HomeScreen() {
     }
   };
 
-  const handleViewSurgeRadar = (type: 'toWork' | 'toHome') => {
-    const origin = type === 'toWork' ? TEST_LOCATIONS.home : TEST_LOCATIONS.office;
-    const dest = type === 'toWork' ? TEST_LOCATIONS.office : TEST_LOCATIONS.home;
+  const handleViewSurgeRadar = (route: any) => {
     router.push({
       pathname: '/surge-radar',
       params: {
-        originLat: origin.latitude,
-        originLng: origin.longitude,
-        destLat: dest.latitude,
-        destLng: dest.longitude,
-        routeName: type === 'toWork' ? 'Andheri → BKC' : 'BKC → Andheri',
+        originLat: route.from.latitude,
+        originLng: route.from.longitude,
+        destLat: route.to.latitude,
+        destLng: route.to.longitude,
+        routeName: `${route.from.label} → ${route.to.label}`,
       },
     });
   };
@@ -188,18 +245,18 @@ export default function HomeScreen() {
   };
 
   // Empty state when no locations
-  if (!loading && !hasLocations) {
+  if (!loading && locations.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.emptyContainer}>
-          <Ionicons name="location-outline" size={80} color="#6B7280" />
-          <Text style={styles.emptyTitle}>Add Your Locations</Text>
+          <Ionicons name=\"location-outline\" size={80} color=\"#6B7280\" />
+          <Text style={styles.emptyTitle}>No Locations Added</Text>
           <Text style={styles.emptyText}>
-            Set your Home and Office locations to get started with smart commute tracking
+            Add your frequently visited places to get smart commute estimates and surge alerts
           </Text>
           <TouchableOpacity
             style={styles.primaryButton}
-            onPress={() => router.push('/location-setup')}
+            onPress={() => router.push('/locations-manager')}
           >
             <Text style={styles.primaryButtonText}>Add Locations</Text>
           </TouchableOpacity>
@@ -217,13 +274,13 @@ export default function HomeScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             colors={['#FF6B35']}
-            tintColor="#FF6B35"
+            tintColor=\"#FF6B35\"
           />
         }
       >
         {error && (
           <View style={styles.errorBanner}>
-            <Ionicons name="warning" size={20} color="#EF4444" />
+            <Ionicons name=\"warning\" size={20} color=\"#EF4444\" />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -231,7 +288,7 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>
-              {getGreeting()}, {user?.name || 'Priya'}! ☀️
+              {getGreeting()}, {user?.name || 'there'}! ☀️
             </Text>
             <Text style={styles.time}>
               {new Date().toLocaleTimeString('en-US', {
@@ -240,86 +297,69 @@ export default function HomeScreen() {
               })}
             </Text>
           </View>
+          <TouchableOpacity onPress={() => router.push('/locations-manager')}>
+            <Ionicons name=\"settings-outline\" size={28} color=\"#6B7280\" />
+          </TouchableOpacity>
         </View>
 
-        {/* Go to Work Card */}
-        <Animated.View style={[styles.cardWrapper, { transform: [{ scale: pulseAnim }] }]}>
-          <View style={[styles.card, styles.pulsingCard]}>
-            <View style={styles.liveDot} />
-            <Text style={styles.cardTitle}>Go to Work 🔴</Text>
-            <Text style={styles.route}>Andheri East → BKC Tech Park</Text>
-            {goToWorkEstimate ? (
-              <>
-                <View style={styles.estimateRow}>
-                  <Text style={styles.eta}>{goToWorkEstimate.etaMinutes} min</Text>
-                  <Text style={styles.price}>
-                    ₹{goToWorkEstimate.estimateMin} {getSurgeEmoji(goToWorkEstimate.surgePercent)}
-                  </Text>
-                </View>
-                <Text style={styles.insight}>Leave NOW to save ₹45 ✨</Text>
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity
-                    style={styles.primaryButton}
-                    onPress={() => handleSmartBook(goToWorkEstimate)}
-                  >
-                    <Text style={styles.primaryButtonText}>🚀 Smart Book</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={() => handleViewSurgeRadar('toWork')}
-                  >
-                    <Text style={styles.secondaryButtonText}>Surge Radar</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <Text style={styles.loadingText}>Loading...</Text>
-            )}
-          </View>
-        </Animated.View>
+        {/* Dynamic Route Cards */}
+        {routes.map((route) => (
+          <Animated.View key={route.id} style={[styles.cardWrapper, { transform: [{ scale: pulseAnim }] }]}>
+            <View style={[styles.card, styles.pulsingCard]}>
+              <View style={styles.liveDot} />
+              <View style={styles.cardHeader}>
+                <Ionicons name={route.icon} size={24} color=\"#FF6B35\" />
+                <Text style={styles.cardTitle}>{route.title}</Text>
+              </View>
+              <Text style={styles.route}>
+                {route.from.label} → {route.to.label}
+              </Text>
+              {route.estimate ? (
+                <>
+                  <View style={styles.estimateRow}>
+                    <Text style={styles.eta}>{route.estimate.etaMinutes} min</Text>
+                    <Text style={styles.price}>
+                      ₹{route.estimate.estimateMin} {getSurgeEmoji(route.estimate.surgePercent)}
+                    </Text>
+                  </View>
+                  <View style={styles.buttonRow}>
+                    <TouchableOpacity
+                      style={styles.primaryButtonSmall}
+                      onPress={() => handleSmartBook(route.estimate)}
+                    >
+                      <Text style={styles.primaryButtonTextSmall}>🚀 Smart Book</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.secondaryButtonSmall}
+                      onPress={() => handleViewSurgeRadar(route)}
+                    >
+                      <Text style={styles.secondaryButtonTextSmall}>Surge Radar</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.loadingText}>Loading...</Text>
+              )}
+            </View>
+          </Animated.View>
+        ))}
 
-        {/* Go Home Card */}
-        <Animated.View style={[styles.cardWrapper, { transform: [{ scale: pulseAnim }] }]}>
-          <View style={[styles.card, styles.pulsingCard]}>
-            <View style={styles.liveDot} />
-            <Text style={styles.cardTitle}>Go Home 🔴</Text>
-            <Text style={styles.route}>BKC → Andheri East</Text>
-            {goHomeEstimate ? (
-              <>
-                <View style={styles.estimateRow}>
-                  <Text style={styles.eta}>{goHomeEstimate.etaMinutes} min</Text>
-                  <Text style={styles.price}>
-                    ₹{goHomeEstimate.estimateMin} {getSurgeEmoji(goHomeEstimate.surgePercent)}
-                  </Text>
-                </View>
-                <View style={styles.buttonRow}>
-                  <TouchableOpacity
-                    style={styles.primaryButton}
-                    onPress={() => handleSmartBook(goHomeEstimate)}
-                  >
-                    <Text style={styles.primaryButtonText}>🚀 Smart Book</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={() => handleViewSurgeRadar('toHome')}
-                  >
-                    <Text style={styles.secondaryButtonText}>Surge Radar</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <Text style={styles.loadingText}>Loading...</Text>
-            )}
-          </View>
-        </Animated.View>
-
-        {/* Week Score */}
-        <View style={styles.weekScoreBadge}>
-          <Ionicons name="star" size={20} color="#FFD700" />
-          <View style={styles.weekScoreText}>
-            <Text style={styles.weekScoreValue}>8.7/10</Text>
-            <Text style={styles.weekScoreSavings}>Saved ₹320 this week!</Text>
-          </View>
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={styles.quickAction}
+            onPress={() => router.push('/(tabs)/explorer')}
+          >
+            <Ionicons name=\"search\" size={24} color=\"#3B82F6\" />
+            <Text style={styles.quickActionText}>Explore Routes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.quickAction}
+            onPress={() => router.push('/locations-manager')}
+          >
+            <Ionicons name=\"add-circle-outline\" size={24} color=\"#10B981\" />
+            <Text style={styles.quickActionText}>Add Location</Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -342,12 +382,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   greeting: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#1F2937',
   },
   time: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#6B7280',
     marginTop: 4,
   },
@@ -379,11 +419,16 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#10B981',
   },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   cardTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginLeft: 8,
   },
   route: {
     fontSize: 16,
@@ -394,7 +439,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   eta: {
     fontSize: 18,
@@ -406,38 +451,32 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FF6B35',
   },
-  insight: {
-    fontSize: 14,
-    color: '#10B981',
-    marginBottom: 16,
-    fontWeight: '600',
-  },
   buttonRow: {
     flexDirection: 'row',
     gap: 12,
   },
-  primaryButton: {
+  primaryButtonSmall: {
     flex: 1,
     backgroundColor: '#FF6B35',
     borderRadius: 12,
-    padding: 14,
+    padding: 12,
     alignItems: 'center',
   },
-  primaryButtonText: {
+  primaryButtonTextSmall: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
-  secondaryButton: {
+  secondaryButtonSmall: {
     flex: 1,
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
-    padding: 14,
+    padding: 12,
     alignItems: 'center',
   },
-  secondaryButtonText: {
+  secondaryButtonTextSmall: {
     color: '#FF6B35',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   loadingText: {
@@ -445,29 +484,6 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     paddingVertical: 20,
-  },
-  weekScoreBadge: {
-    flexDirection: 'row',
-    backgroundColor: '#6B46C1',
-    borderRadius: 20,
-    padding: 16,
-    marginHorizontal: 24,
-    marginBottom: 24,
-    alignItems: 'center',
-    gap: 12,
-  },
-  weekScoreText: {
-    flex: 1,
-  },
-  weekScoreValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  weekScoreSavings: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    opacity: 0.9,
   },
   errorBanner: {
     backgroundColor: '#FEF2F2',
@@ -508,5 +524,41 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 32,
+  },
+  primaryButton: {
+    backgroundColor: '#FF6B35',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 24,
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  quickAction: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  quickActionText: {
+    fontSize: 14,
+    color: '#1F2937',
+    fontWeight: '600',
+    marginTop: 8,
   },
 });
