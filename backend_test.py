@@ -201,8 +201,8 @@ def test_commute_search(results, token):
             return
             
         # Check if coordinates are in the deep link
-        andheri_lat = str(TEST_COORDINATES["andheri_east"]["lat"])
-        bkc_lat = str(TEST_COORDINATES["bkc"]["lat"])
+        andheri_lat = str(TEST_COORDINATES["andheri_east"]["latitude"])
+        bkc_lat = str(TEST_COORDINATES["bkc"]["latitude"])
         if andheri_lat not in deep_link or bkc_lat not in deep_link:
             results.log_fail("Commute Search", "Deep link missing coordinates")
             return
