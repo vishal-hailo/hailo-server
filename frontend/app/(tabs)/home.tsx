@@ -221,6 +221,13 @@ export default function HomeScreen() {
           />
         }
       >
+        {error && (
+          <View style={styles.errorBanner}>
+            <Ionicons name="warning" size={20} color="#EF4444" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>
