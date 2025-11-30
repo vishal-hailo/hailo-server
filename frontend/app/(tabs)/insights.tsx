@@ -13,7 +13,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
-import { API_URL } from '../../utils/api';
+// API_URL from environment variable
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 const { width } = Dimensions.get('window');
 
