@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  phone     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  locations Location[]
+  logs      CommuteLog[]
+}
+
+model Location {
+  id          String       @id @default(uuid())
+  userId      String
+  type        LocationType
+  label       String
+  address     String
+  latitude    Float
+  longitude   Float
+  createdAt   DateTime     @default(now())
+  user        User         @relation(fields: [userId], references: [id])
+  originLogs  CommuteLog[] @relation("OriginLogs")
+  destLogs    CommuteLog[] @relation("DestLogs")
+}
+
+model CommuteLog {
+  id                 String    @id @default(uuid())
+  userId             String
+  originLocationId   String?
+  destLocationId     String?
+  originLat          Float?
+  originLng          Float?
+  destLat            Float?
+  destLng            Float?
+  searchedAt         DateTime  @default(now())
+  uberEstimateMin    Int?
+  uberEstimateMax    Int?
+  uberCurrency       String?   @default("INR")
+  etaSeconds         Int?
+  surgePercent       Float?
+  handoffClicked     Boolean   @default(false)
+  user               User      @relation(fields: [userId], references: [id])
+  originLocation     Location? @relation("OriginLogs", fields: [originLocationId], references: [id])
+  destLocation       Location? @relation("DestLogs", fields: [destLocationId], references: [id])
+
+  @@index([userId, searchedAt])
+}
+
+enum LocationType {
+  HOME
+  OFFICE
+  OTHER
+}
