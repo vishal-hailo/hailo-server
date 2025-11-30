@@ -28,15 +28,43 @@ export default function PhoneScreen() {
       return;
     }
 
+    console.log('Attempting to send OTP to:', phone);
+    console.log('API URL:', API_URL);
     setLoading(true);
+    
     try {
-      const response = await axios.post(`${API_URL}/api/v1/auth/request-otp`, { phone });
+      console.log('Making request to:', `${API_URL}/api/v1/auth/request-otp`);
+      const response = await axios.post(`${API_URL}/api/v1/auth/request-otp`, { phone }, {
+        timeout: 10000, // 10 second timeout
+      });
+      console.log('OTP Response:', response.data);
+      
       if (response.data.success) {
+        console.log('OTP sent successfully, navigating to OTP screen');
         router.push({ pathname: '/auth/otp', params: { phone } });
+      } else {
+        Alert.alert('Error', 'Failed to send OTP. Please try again.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Request OTP error:', error);
-      Alert.alert('Error', 'Failed to send OTP. Please try again.');
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      
+      let errorMessage = 'Failed to send OTP. ';
+      if (error.code === 'ECONNABORTED') {
+        errorMessage += 'Request timed out.';
+      } else if (error.response) {
+        errorMessage += error.response.data?.error || 'Server error.';
+      } else if (error.request) {
+        errorMessage += 'Cannot reach server. Check your connection.';
+      } else {
+        errorMessage += error.message;
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
