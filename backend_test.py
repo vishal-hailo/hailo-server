@@ -17,10 +17,10 @@ HEADERS = {"Content-Type": "application/json"}
 TEST_PHONE = "+919876543210"
 TEST_OTP = "1234"
 TEST_COORDINATES = {
-    "andheri_east": {"lat": 19.1188, "lng": 72.8913},
-    "bkc": {"lat": 19.0661, "lng": 72.8354},
-    "bandra": {"lat": 19.0634, "lng": 72.8350},
-    "powai": {"lat": 19.1249, "lng": 72.9077}
+    "andheri_east": {"latitude": 19.1188, "longitude": 72.8913},
+    "bkc": {"latitude": 19.0661, "longitude": 72.8354},
+    "bandra": {"latitude": 19.0634, "longitude": 72.8350},
+    "powai": {"latitude": 19.1249, "longitude": 72.9077}
 }
 
 class TestResults:
