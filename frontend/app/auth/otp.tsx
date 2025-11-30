@@ -37,8 +37,23 @@ export default function OTPScreen() {
 
       if (response.data.token) {
         await AsyncStorage.setItem('authToken', response.data.token);
-        await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
-        router.replace('/(tabs)/home');
+        
+        // Check if user has a name (existing user) or needs registration
+        if (response.data.user.name) {
+          await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
+          // Check if locations are setup
+          const locationsSetup = await AsyncStorage.getItem('locationsSetup');
+          if (locationsSetup) {
+            router.replace('/(tabs)/home');
+          } else {
+            router.replace('/location-setup');
+          }
+        } else {
+          // New user - go to registration
+          router.replace({
+            pathname: '/auth/register',
+            params: { phone, token: response.data.token },
+          });\n        }
       }
     } catch (error: any) {
       console.error('Verify OTP error:', error);
