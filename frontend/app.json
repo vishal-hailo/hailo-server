@@ -20,7 +20,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FF6B35"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.hailo.app"
     },
     "web": {
