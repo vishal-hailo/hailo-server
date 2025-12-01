@@ -249,7 +249,7 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.emptyContainer}>
-          <Ionicons name=\"location-outline\" size={80} color=\"#6B7280\" />
+          <Ionicons name= "location-outline" size={80} color="#6B7280" />
           <Text style={styles.emptyTitle}>No Locations Added</Text>
           <Text style={styles.emptyText}>
             Add your frequently visited places to get smart commute estimates and surge alerts
@@ -274,13 +274,13 @@ export default function HomeScreen() {
             refreshing={refreshing}
             onRefresh={onRefresh}
             colors={['#FF6B35']}
-            tintColor=\"#FF6B35\"
+            tintColor="#FF6B35"
           />
         }
       >
         {error && (
           <View style={styles.errorBanner}>
-            <Ionicons name=\"warning\" size={20} color=\"#EF4444\" />
+            <Ionicons name="warning" size={20} color="#EF4444" />
             <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
@@ -298,7 +298,7 @@ export default function HomeScreen() {
             </Text>
           </View>
           <TouchableOpacity onPress={() => router.push('/locations-manager')}>
-            <Ionicons name=\"settings-outline\" size={28} color=\"#6B7280\" />
+            <Ionicons name="settings-outline" size={28} color="#6B7280" />
           </TouchableOpacity>
         </View>
 
@@ -308,7 +308,7 @@ export default function HomeScreen() {
             <View style={[styles.card, styles.pulsingCard]}>
               <View style={styles.liveDot} />
               <View style={styles.cardHeader}>
-                <Ionicons name={route.icon} size={24} color=\"#FF6B35\" />
+                <Ionicons name={route.icon} size={24} color="#FF6B35" />
                 <Text style={styles.cardTitle}>{route.title}</Text>
               </View>
               <Text style={styles.route}>
@@ -350,14 +350,14 @@ export default function HomeScreen() {
             style={styles.quickAction}
             onPress={() => router.push('/(tabs)/explorer')}
           >
-            <Ionicons name=\"search\" size={24} color=\"#3B82F6\" />
+            <Ionicons name="search" size={24} color="#3B82F6" />
             <Text style={styles.quickActionText}>Explore Routes</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.quickAction}
             onPress={() => router.push('/locations-manager')}
           >
-            <Ionicons name=\"add-circle-outline\" size={24} color=\"#10B981\" />
+            <Ionicons name="add-circle-outline" size={24} color="#10B981" />
             <Text style={styles.quickActionText}>Add Location</Text>
           </TouchableOpacity>
         </View>
