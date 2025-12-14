@@ -7,16 +7,53 @@ import {
   ScrollView,
   Switch,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import axios from 'axios';
+
+// API_URL from environment variable
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [dailyNudge, setDailyNudge] = useState(true);
   const [surgeAlerts, setSurgeAlerts] = useState(true);
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
+
+  const loadData = async () => {
+    try {
+      const userStr = await AsyncStorage.getItem('user');
+      if (userStr) {
+        setUser(JSON.parse(userStr));
+      }
+
+      const token = await AsyncStorage.getItem('authToken');
+      const response = await axios.get(`${API_URL}/api/v1/locations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setLocations(response.data || []);
+    } catch (error) {
+      console.error('Load data error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -29,14 +66,12 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Clear all app data
               await AsyncStorage.multiRemove([
                 'authToken',
                 'user',
                 'locationsSetup',
                 'onboardingCompleted'
               ]);
-              // Navigate to auth
               router.replace('/auth/phone');
             } catch (error) {
               console.error('Logout error:', error);
@@ -67,41 +102,91 @@ export default function SettingsScreen() {
     );
   };
 
+  const getIconForType = (type: string) => {
+    if (type === 'HOME') return 'home';
+    if (type === 'OFFICE') return 'briefcase';
+    return 'location';
+  };
+
+  const getColorForType = (type: string) => {
+    if (type === 'HOME') return '#FF6B35';
+    if (type === 'OFFICE') return '#6B46C1';
+    return '#10B981';
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <Text style={styles.title}>Settings</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>Settings</Text>
+          {user && (
+            <View style={styles.userBadge}>
+              <Ionicons name="person-circle" size={24} color="#FF6B35" />
+              <Text style={styles.userName}>{user.name}</Text>
+            </View>
+          )}
+        </View>
 
         {/* Saved Locations */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>📍 Saved Locations</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>📍 Saved Locations</Text>
+            <TouchableOpacity onPress={() => router.push('/locations-manager')}>
+              <Ionicons name="settings-outline" size={20} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
           
-          <TouchableOpacity style={styles.item}>
-            <View style={styles.itemLeft}>
-              <Ionicons name="home" size={24} color="#FF6B35" />
-              <View style={styles.itemText}>
-                <Text style={styles.itemTitle}>Home</Text>
-                <Text style={styles.itemSubtitle}>Andheri East</Text>
-              </View>
+          {loading ? (
+            <ActivityIndicator size="small" color="#FF6B35" style={{ paddingVertical: 20 }} />
+          ) : locations.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No locations saved yet</Text>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => router.push('/locations-manager')}
+              >
+                <Ionicons name="add-circle" size={20} color="#FF6B35" />
+                <Text style={styles.addButtonText}>Add Location</Text>
+              </TouchableOpacity>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#6B7280" />
-          </TouchableOpacity>
+          ) : (
+            <>
+              {locations.slice(0, 3).map((location: any) => (
+                <TouchableOpacity
+                  key={location.id}
+                  style={styles.item}
+                  onPress={() => router.push('/locations-manager')}
+                >
+                  <View style={styles.itemLeft}>
+                    <Ionicons
+                      name={getIconForType(location.type)}
+                      size={24}
+                      color={getColorForType(location.type)}
+                    />
+                    <View style={styles.itemText}>
+                      <Text style={styles.itemTitle}>{location.label}</Text>
+                      <Text style={styles.itemSubtitle} numberOfLines={1}>
+                        {location.address}
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+                </TouchableOpacity>
+              ))}
 
-          <TouchableOpacity style={styles.item}>
-            <View style={styles.itemLeft}>
-              <Ionicons name="briefcase" size={24} color="#6B46C1" />
-              <View style={styles.itemText}>
-                <Text style={styles.itemTitle}>Office</Text>
-                <Text style={styles.itemSubtitle}>BKC Tech Park</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#6B7280" />
-          </TouchableOpacity>
+              {locations.length > 3 && (
+                <Text style={styles.moreText}>+{locations.length - 3} more locations</Text>
+              )}
 
-          <TouchableOpacity style={styles.addButton}>
-            <Ionicons name="add-circle" size={20} color="#FF6B35" />
-            <Text style={styles.addButtonText}>Add Other Location</Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => router.push('/locations-manager')}
+              >
+                <Ionicons name="add-circle" size={20} color="#FF6B35" />
+                <Text style={styles.addButtonText}>Manage Locations</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
 
         {/* Notifications */}
@@ -182,12 +267,25 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  header: {
+    padding: 24,
+    paddingBottom: 8,
+  },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#1F2937',
-    padding: 24,
-    paddingBottom: 8,
+    marginBottom: 8,
+  },
+  userBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  userName: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   section: {
     backgroundColor: '#FFFFFF',
@@ -196,11 +294,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 16,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 16,
   },
   item: {
     flexDirection: 'row',
@@ -229,6 +332,15 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
   },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginBottom: 12,
+  },
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -241,6 +353,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FF6B35',
+  },
+  moreText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    paddingVertical: 8,
   },
   deleteButton: {
     backgroundColor: '#FEE2E2',
