@@ -1,232 +1,256 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
-  ActivityIndicator,
+  Platform,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// API_URL from environment variable
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+const Colors = {
+  primary: { main: '#3B82F6', light: '#60A5FA', dark: '#2563EB', subtle: '#DBEAFE' },
+  secondary: { teal: '#10B981', orange: '#F97316', purple: '#8B5CF6' },
+  neutral: { 100: '#F3F4F6', 200: '#E5E7EB', 300: '#D1D5DB', 400: '#9CA3AF' },
+  text: { primary: '#111827', secondary: '#6B7280', tertiary: '#9CA3AF', inverse: '#FFFFFF' },
+  background: { card: '#FFFFFF', secondary: '#F9FAFB' },
+};
 
-export default function ExplorerScreen() {
-  const router = useRouter();
-  const [from, setFrom] = useState<any>(null);
-  const [to, setTo] = useState<any>(null);
-  const [savedLocations, setSavedLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadSavedLocations();
-  }, []);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      loadSavedLocations();
-    }, [])
-  );
-
-  const loadSavedLocations = async () => {
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      const response = await axios.get(`${API_URL}/api/v1/locations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setSavedLocations(response.data || []);
-    } catch (error) {
-      console.error('Load locations error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLocationSelect = (type: 'from' | 'to', location: any) => {
-    if (type === 'from') {
-      setFrom(location);
-    } else {
-      setTo(location);
-    }
-  };
-
-  const handleSearch = () => {
-    if (!from || !to) {
-      Alert.alert('Missing Locations', 'Please select both From and To locations');
-      return;
-    }
-
-    router.push({
-      pathname: '/surge-radar',
-      params: {
-        originLat: from.latitude,
-        originLng: from.longitude,
-        destLat: to.latitude,
-        destLng: to.longitude,
-        routeName: `${from.label} → ${to.label}`,
-      },
-    });
-  };
-
-  const getIconForType = (type: string) => {
-    if (type === 'HOME') return 'home';
-    if (type === 'OFFICE') return 'briefcase';
-    return 'location';
-  };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B35" />
-          <Text style={styles.loadingText}>Loading locations...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (savedLocations.length === 0) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.emptyContainer}>
-          <Ionicons name="map-outline" size={80} color="#9CA3AF" />
-          <Text style={styles.emptyTitle}>No Locations Saved</Text>
-          <Text style={styles.emptyText}>
-            Add your frequently visited places to explore routes and get surge predictions
-          </Text>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => router.push('/locations-manager')}
+// Day Selector Component
+const DaySelector = ({ days, disabled = false }) => {
+  const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  
+  return (
+    <View style={styles.daySelector}>
+      {dayLabels.map((label, index) => (
+        <View
+          key={index}
+          style={[
+            styles.dayButton,
+            days[index] ? styles.dayButtonActive : styles.dayButtonInactive,
+            disabled && styles.dayButtonDisabled,
+          ]}
+        >
+          <Text
+            style={[
+              styles.dayButtonText,
+              days[index] ? styles.dayButtonTextActive : styles.dayButtonTextInactive,
+            ]}
           >
-            <Text style={styles.addButtonText}>Add Locations</Text>
-          </TouchableOpacity>
+            {label}
+          </Text>
         </View>
-      </SafeAreaView>
-    );
-  }
+      ))}
+    </View>
+  );
+};
+
+// Route Indicator Component
+const RouteIndicator = ({ from, to, fromColor = Colors.primary.main, toColor = Colors.secondary.teal }) => {
+  return (
+    <View style={styles.routeContainer}>
+      <View style={styles.routeItem}>
+        <View style={[styles.routeDot, { backgroundColor: fromColor }]} />
+        <Text style={styles.routeText}>{from}</Text>
+      </View>
+      <View style={styles.routeItem}>
+        <View style={[styles.routeDot, { backgroundColor: toColor }]} />
+        <Text style={styles.routeText}>{to}</Text>
+      </View>
+    </View>
+  );
+};
+
+export default function ScheduleScreen() {
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'recurring'>('upcoming');
+
+  const upcomingRides = [
+    {
+      id: 1,
+      title: 'Office Meeting',
+      from: 'Home',
+      to: 'Office',
+      date: 'Today',
+      time: '9:00 AM',
+      price: '₹95',
+      status: 'confirmed',
+    },
+    {
+      id: 2,
+      title: 'Airport Drop',
+      from: 'Home',
+      to: 'BLR Airport',
+      date: 'Tomorrow',
+      time: '6:30 AM',
+      price: '₹450',
+      status: 'pending',
+    },
+  ];
+
+  const recurringRides = [
+    {
+      id: 1,
+      title: 'Office Commute',
+      from: 'Home',
+      to: 'Office',
+      time: '9:00 AM',
+      days: [true, true, true, true, true, false, false], // M-F
+      price: '~₹95',
+      reminder: true,
+    },
+    {
+      id: 2,
+      title: 'Home Return',
+      from: 'Office',
+      to: 'Home',
+      time: '6:30 PM',
+      days: [true, true, true, true, true, false, false], // M-F
+      price: '~₹120',
+      reminder: true,
+    },
+  ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Explorer</Text>
-            <Text style={styles.subtitle}>Find the best time for any route</Text>
-          </View>
-          <TouchableOpacity onPress={() => router.push('/locations-manager')}>
-            <Ionicons name="add-circle" size={32} color="#FF6B35" />
-          </TouchableOpacity>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Schedule</Text>
+          <Text style={styles.headerSubtitle}>Plan your rides ahead</Text>
         </View>
+        <TouchableOpacity style={styles.addButton}>
+          <Ionicons name="add-circle" size={32} color={Colors.primary.main} />
+        </TouchableOpacity>
+      </View>
 
-        {/* From Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>From</Text>
-          {from ? (
-            <View style={styles.selectedLocation}>
-              <View style={styles.selectedLocationHeader}>
-                <View style={styles.selectedLocationIcon}>
-                  <Ionicons name={getIconForType(from.type)} size={24} color="#FF6B35" />
-                </View>
-                <View style={styles.selectedLocationInfo}>
-                  <Text style={styles.selectedLocationLabel}>{from.label}</Text>
-                  <Text style={styles.selectedLocationType}>{from.type}</Text>
-                  <Text style={styles.selectedLocationAddress}>{from.address}</Text>
-                </View>
-                <TouchableOpacity onPress={() => setFrom(null)}>
-                  <Ionicons name="close-circle" size={28} color="#EF4444" />
+      {/* Tabs */}
+      <View style={styles.tabs}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'upcoming' && styles.tabActive]}
+          onPress={() => setActiveTab('upcoming')}
+        >
+          <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>
+            Upcoming
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'recurring' && styles.tabActive]}
+          onPress={() => setActiveTab('recurring')}
+        >
+          <Text style={[styles.tabText, activeTab === 'recurring' && styles.tabTextActive]}>
+            Recurring
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {activeTab === 'upcoming' ? (
+          <View style={styles.content}>
+            {upcomingRides.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="calendar-outline" size={80} color={Colors.neutral[400]} />
+                <Text style={styles.emptyTitle}>No Upcoming Rides</Text>
+                <Text style={styles.emptyText}>Schedule your rides in advance</Text>
+                <TouchableOpacity style={styles.emptyButton}>
+                  <Text style={styles.emptyButtonText}>Schedule Ride</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          ) : (
-            <View style={styles.locationGrid}>
-              {savedLocations.map((location: any) => (
-                <TouchableOpacity
-                  key={location.id}
-                  style={styles.locationCard}
-                  onPress={() => handleLocationSelect('from', location)}
-                >
-                  <Ionicons name={getIconForType(location.type)} size={24} color="#FF6B35" />
-                  <Text style={styles.locationCardLabel}>{location.label}</Text>
-                  <Text style={styles.locationCardType}>{location.type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
+            ) : (
+              upcomingRides.map((ride) => (
+                <View key={ride.id} style={styles.upcomingCard}>
+                  <View style={styles.upcomingHeader}>
+                    <View style={styles.upcomingInfo}>
+                      <Text style={styles.upcomingTitle}>{ride.title}</Text>
+                      <Text style={styles.upcomingDateTime}>
+                        {ride.date} • {ride.time}
+                      </Text>
+                    </View>
+                    <View style={[
+                      styles.statusBadge,
+                      { backgroundColor: ride.status === 'confirmed' ? Colors.secondary.teal : Colors.secondary.orange }
+                    ]}>
+                      <Text style={styles.statusText}>
+                        {ride.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                      </Text>
+                    </View>
+                  </View>
 
-        {/* Swap Button */}
-        {from && to && (
-          <View style={styles.swapContainer}>
-            <TouchableOpacity
-              style={styles.swapButton}
-              onPress={() => {
-                const temp = from;
-                setFrom(to);
-                setTo(temp);
-              }}
-            >
-              <Ionicons name="swap-vertical" size={24} color="#FFFFFF" />
-            </TouchableOpacity>
+                  <RouteIndicator from={ride.from} to={ride.to} />
+
+                  <View style={styles.upcomingFooter}>
+                    <Text style={styles.upcomingPrice}>{ride.price}</Text>
+                    <View style={styles.upcomingActions}>
+                      <TouchableOpacity style={styles.actionButton}>
+                        <Ionicons name="create-outline" size={20} color={Colors.primary.main} />
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.actionButton}>
+                        <Ionicons name="trash-outline" size={20} color={Colors.text.secondary} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        ) : (
+          <View style={styles.content}>
+            {recurringRides.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="repeat-outline" size={80} color={Colors.neutral[400]} />
+                <Text style={styles.emptyTitle}>No Recurring Rides</Text>
+                <Text style={styles.emptyText}>Set up your daily commute patterns</Text>
+                <TouchableOpacity style={styles.emptyButton}>
+                  <Text style={styles.emptyButtonText}>Add Recurring Ride</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              recurringRides.map((ride) => (
+                <View key={ride.id} style={styles.recurringCard}>
+                  <View style={styles.recurringHeader}>
+                    <Text style={styles.recurringTitle}>{ride.title}</Text>
+                    <TouchableOpacity>
+                      <Ionicons name="ellipsis-vertical" size={20} color={Colors.text.secondary} />
+                    </TouchableOpacity>
+                  </View>
+
+                  <RouteIndicator from={ride.from} to={ride.to} />
+
+                  <View style={styles.recurringDetails}>
+                    <View style={styles.recurringTime}>
+                      <Ionicons name="time-outline" size={18} color={Colors.text.secondary} />
+                      <Text style={styles.recurringTimeText}>{ride.time}</Text>
+                    </View>
+                    <Text style={styles.recurringPrice}>{ride.price}</Text>
+                  </View>
+
+                  <DaySelector days={ride.days} disabled />
+
+                  <View style={styles.recurringFooter}>
+                    <View style={styles.reminderContainer}>
+                      <Ionicons name="notifications" size={18} color={Colors.secondary.teal} />
+                      <Text style={styles.reminderText}>Remind 15 min before</Text>
+                    </View>
+                    <TouchableOpacity>
+                      <Text style={styles.editText}>Edit</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
         )}
 
-        {/* To Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>To</Text>
-          {to ? (
-            <View style={styles.selectedLocation}>
-              <View style={styles.selectedLocationHeader}>
-                <View style={styles.selectedLocationIcon}>
-                  <Ionicons name={getIconForType(to.type)} size={24} color="#10B981" />
-                </View>
-                <View style={styles.selectedLocationInfo}>
-                  <Text style={styles.selectedLocationLabel}>{to.label}</Text>
-                  <Text style={styles.selectedLocationType}>{to.type}</Text>
-                  <Text style={styles.selectedLocationAddress}>{to.address}</Text>
-                </View>
-                <TouchableOpacity onPress={() => setTo(null)}>
-                  <Ionicons name="close-circle" size={28} color="#EF4444" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.locationGrid}>
-              {savedLocations
-                .filter((loc: any) => !from || loc.id !== from.id)
-                .map((location: any) => (
-                  <TouchableOpacity
-                    key={location.id}
-                    style={styles.locationCard}
-                    onPress={() => handleLocationSelect('to', location)}
-                  >
-                    <Ionicons name={getIconForType(location.type)} size={24} color="#10B981" />
-                    <Text style={styles.locationCardLabel}>{location.label}</Text>
-                    <Text style={styles.locationCardType}>{location.type}</Text>
-                  </TouchableOpacity>
-                ))}
-            </View>
-          )}
-        </View>
-
-        {/* Search Button */}
-        <TouchableOpacity
-          style={[
-            styles.searchButton,
-            (!from || !to) && styles.searchButtonDisabled,
-          ]}
-          onPress={handleSearch}
-          disabled={!from || !to}
-        >
-          <Ionicons name="search" size={20} color="#FFFFFF" />
-          <Text style={styles.searchButtonText}>View Surge Radar</Text>
-        </TouchableOpacity>
+        <View style={{ height: 100 }} />
       </ScrollView>
+
+      {/* Floating Add Button */}
+      <TouchableOpacity style={styles.floatingButton}>
+        <Ionicons name="add" size={28} color={Colors.text.inverse} />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -234,188 +258,268 @@ export default function ExplorerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  scrollView: {
-    flex: 1,
+    backgroundColor: Colors.background.secondary,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    padding: 24,
-    paddingBottom: 16,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
-  title: {
+  headerTitle: {
     fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: '700',
+    color: Colors.text.primary,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
+  headerSubtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
     marginTop: 4,
   },
-  section: {
-    paddingHorizontal: 24,
-    marginBottom: 32,
+  addButton: {
+    padding: 4,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+  tabs: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 12,
     marginBottom: 16,
   },
-  locationGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.background.card,
+    alignItems: 'center',
   },
-  locationCard: {
-    backgroundColor: '#FFFFFF',
+  tabActive: {
+    backgroundColor: Colors.primary.main,
+  },
+  tabText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+  },
+  tabTextActive: {
+    color: Colors.text.inverse,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: 20,
+  },
+  
+  // Upcoming Rides
+  upcomingCard: {
+    backgroundColor: Colors.background.card,
     borderRadius: 16,
     padding: 16,
-    alignItems: 'center',
-    minWidth: '30%',
-    flex: 1,
-    maxWidth: '48%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    marginBottom: 12,
+    gap: 12,
   },
-  locationCardLabel: {
+  upcomingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  upcomingInfo: {
+    flex: 1,
+  },
+  upcomingTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  upcomingDateTime: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginTop: 4,
+  },
+  statusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text.inverse,
+  },
+  upcomingFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  upcomingPrice: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  upcomingActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    padding: 8,
+  },
+
+  // Recurring Rides
+  recurringCard: {
+    backgroundColor: Colors.background.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    gap: 12,
+  },
+  recurringHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  recurringTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  recurringDetails: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  recurringTime: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  recurringTimeText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  recurringPrice: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  recurringFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  reminderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  reminderText: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+  },
+  editText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: Colors.primary.main,
+  },
+
+  // Route Indicator
+  routeContainer: {
+    gap: 8,
+  },
+  routeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  routeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  routeText: {
+    fontSize: 14,
+    color: Colors.text.primary,
+  },
+
+  // Day Selector
+  daySelector: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dayButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dayButtonActive: {
+    backgroundColor: Colors.primary.main,
+  },
+  dayButtonInactive: {
+    backgroundColor: Colors.neutral[200],
+  },
+  dayButtonDisabled: {
+    opacity: 0.7,
+  },
+  dayButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dayButtonTextActive: {
+    color: Colors.text.inverse,
+  },
+  dayButtonTextInactive: {
+    color: Colors.text.secondary,
+  },
+
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginTop: 16,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
     marginTop: 8,
     textAlign: 'center',
   },
-  locationCardType: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  selectedLocation: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  selectedLocationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  selectedLocationIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FEF3F2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  selectedLocationInfo: {
-    flex: 1,
-  },
-  selectedLocationLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  selectedLocationType: {
-    fontSize: 12,
-    color: '#FF6B35',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  selectedLocationAddress: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  swapContainer: {
-    alignItems: 'center',
-    marginVertical: -16,
-    zIndex: 10,
-  },
-  swapButton: {
-    backgroundColor: '#FF6B35',
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  searchButton: {
-    flexDirection: 'row',
-    backgroundColor: '#FF6B35',
+  emptyButton: {
+    backgroundColor: Colors.primary.main,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 24,
-    marginTop: 16,
-    marginBottom: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  searchButtonDisabled: {
-    opacity: 0.5,
-  },
-  searchButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
     marginTop: 24,
-    marginBottom: 12,
   },
-  emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  addButton: {
-    backgroundColor: '#FF6B35',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-  },
-  addButtonText: {
-    color: '#FFFFFF',
+  emptyButtonText: {
     fontSize: 16,
     fontWeight: '600',
+    color: Colors.text.inverse,
+  },
+
+  // Floating Button
+  floatingButton: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary.main,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });
