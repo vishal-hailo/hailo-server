@@ -14,8 +14,76 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
-import Colors from '../../constants/Colors';
-import { PillBadge, RoundIcon } from '../../components/shared/DesignSystemComponents';
+
+const Colors = {
+  primary: {
+    main: '#3B82F6',
+    light: '#60A5FA',
+    dark: '#2563EB',
+    subtle: '#DBEAFE',
+  },
+  secondary: {
+    teal: '#10B981',
+    orange: '#F97316',
+    purple: '#8B5CF6',
+  },
+  neutral: {
+    100: '#F3F4F6',
+    200: '#E5E7EB',
+  },
+  text: {
+    primary: '#111827',
+    secondary: '#6B7280',
+    inverse: '#FFFFFF',
+  },
+  background: {
+    card: '#FFFFFF',
+    secondary: '#F9FAFB',
+  },
+  surge: {
+    none: '#10B981',
+    low: '#FED7AA',
+    medium: '#F97316',
+    high: '#DC2626',
+  },
+  warning: '#F59E0B',
+  error: '#EF4444',
+};
+
+// Inline PillBadge component
+const PillBadge = ({ label, variant }) => {
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'surge-none':
+        return { backgroundColor: Colors.surge.none, color: Colors.text.inverse };
+      case 'surge-low':
+        return { backgroundColor: Colors.surge.low, color: Colors.text.primary };
+      case 'surge-medium':
+        return { backgroundColor: Colors.surge.medium, color: Colors.text.inverse };
+      case 'surge-high':
+        return { backgroundColor: Colors.surge.high, color: Colors.text.inverse };
+      default:
+        return { backgroundColor: Colors.primary.main, color: Colors.text.inverse };
+    }
+  };
+
+  const variantStyles = getVariantStyles();
+
+  return (
+    <View style={[styles.pill, { backgroundColor: variantStyles.backgroundColor }]}>
+      <Text style={[styles.pillText, { color: variantStyles.color }]}>{label}</Text>
+    </View>
+  );
+};
+
+// Inline RoundIcon component
+const RoundIcon = ({ icon, backgroundColor, size = 48 }) => {
+  return (
+    <View style={[styles.roundIcon, { backgroundColor, width: size, height: size, borderRadius: size / 2 }]}>
+      {icon}
+    </View>
+  );
+};
 
 // API_URL from environment variable
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
