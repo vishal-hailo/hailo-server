@@ -6,6 +6,8 @@ import firebaseAuthRoutes from './routes/firebase-auth.js';
 import locationRoutes from './routes/locations.js';
 import commuteRoutes from './routes/commute.js';
 import insightsRoutes from './routes/insights.js';
+import surgeRoutes from './routes/surge.js';
+import pricingRoutes from './routes/pricing.js';
 
 dotenv.config();
 
