@@ -837,4 +837,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text.primary,
   },
+  
+  // Pill Badge Styles
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  pillText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
+  // Round Icon Styles
+  roundIcon: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
