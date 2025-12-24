@@ -35,6 +35,8 @@ app.use('/api/v1/auth', firebaseAuthRoutes); // Firebase Phone Auth routes
 app.use('/api/v1/locations', locationRoutes);
 app.use('/api/v1/commute', commuteRoutes);
 app.use('/api/v1/insights', insightsRoutes);
+app.use('/api/v1/surge', surgeRoutes);
+app.use('/api/v1/pricing', pricingRoutes);
 app.use('/api/v1/me', authRoutes);
 
 // Error handling
