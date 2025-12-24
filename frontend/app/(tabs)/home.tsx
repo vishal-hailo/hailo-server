@@ -2,233 +2,58 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
-  Linking,
-  Animated,
   RefreshControl,
+  Platform,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
+import Colors from '../../constants/Colors';
+import { PillBadge, RoundIcon } from '../../components/shared/DesignSystemComponents';
 
 // API_URL from environment variable
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
+type RideType = 'car' | 'rickshaw' | 'bike';
+
 export default function HomeScreen() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [locations, setLocations] = useState([]);
-  const [routes, setRoutes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [selectedRideType, setSelectedRideType] = useState<RideType>('car');
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pulseAnim] = useState(new Animated.Value(1));
+  const [surgeData, setSurgeData] = useState([
+    { time: 'Now', multiplier: 1.3, type: 'surge' },
+    { time: '15m', multiplier: 1.2, type: 'surge' },
+    { time: '30m', multiplier: 0, type: 'none' },
+    { time: '45m', multiplier: 0, type: 'none' },
+    { time: '1h', multiplier: 1.1, type: 'surge' },
+  ]);
 
   useEffect(() => {
-    loadData();
-    startPulseAnimation();
+    loadUserData();
   }, []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadData();
-    }, [])
-  );
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadData();
-    setRefreshing(false);
-  };
-
-  const startPulseAnimation = () => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.02,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-  };
-
-  const loadData = async () => {
+  const loadUserData = async () => {
     try {
-      setError(null);
       const userStr = await AsyncStorage.getItem('user');
       if (userStr) {
         setUser(JSON.parse(userStr));
       }
-
-      // Load user's saved locations
-      const token = await AsyncStorage.getItem('authToken');
-      const locationsResponse = await axios.get(`${API_URL}/api/v1/locations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const userLocations = locationsResponse.data || [];
-      setLocations(userLocations);
-
-      if (userLocations.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      // Generate common routes from saved locations
-      await generateRoutes(userLocations);
-
-    } catch (error: any) {
-      console.error('Load error:', error);
-      if (error.response?.status === 401) {
-        Alert.alert('Session Expired', 'Please login again');
-        await AsyncStorage.clear();
-        router.replace('/auth/phone');
-      } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network')) {
-        setError('No internet connection. Pull to refresh when online.');
-      } else {
-        setError('Failed to load data. Pull to refresh to try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateRoutes = async (userLocations: any[]) => {
-    const token = await AsyncStorage.getItem('authToken');
-    const generatedRoutes = [];
-
-    // Find Home and Office locations
-    const homeLocation = userLocations.find(loc => loc.type === 'HOME');
-    const officeLocation = userLocations.find(loc => loc.type === 'OFFICE');
-
-    // If both Home and Office exist, create bidirectional routes
-    if (homeLocation && officeLocation) {
-      // Home to Office
-      try {
-        const toWorkResponse = await axios.post(
-          `${API_URL}/api/v1/commute/search`,
-          {
-            mode: 'EXPLORER',
-            origin: { latitude: homeLocation.latitude, longitude: homeLocation.longitude },
-            destination: { latitude: officeLocation.latitude, longitude: officeLocation.longitude },
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        generatedRoutes.push({
-          id: 'home-to-office',
-          title: 'Go to Work',
-          from: homeLocation,
-          to: officeLocation,
-          estimate: toWorkResponse.data,
-          icon: 'briefcase',
-        });
-      } catch (error) {
-        console.error('Load home-to-office estimate error:', error);
-      }
-
-      // Office to Home
-      try {
-        const toHomeResponse = await axios.post(
-          `${API_URL}/api/v1/commute/search`,
-          {
-            mode: 'EXPLORER',
-            origin: { latitude: officeLocation.latitude, longitude: officeLocation.longitude },
-            destination: { latitude: homeLocation.latitude, longitude: homeLocation.longitude },
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        generatedRoutes.push({
-          id: 'office-to-home',
-          title: 'Go Home',
-          from: officeLocation,
-          to: homeLocation,
-          estimate: toHomeResponse.data,
-          icon: 'home',
-        });
-      } catch (error) {
-        console.error('Load office-to-home estimate error:', error);
-      }
-    }
-
-    // Add other common routes (first 3 OTHER locations)
-    const otherLocations = userLocations.filter(loc => loc.type === 'OTHER').slice(0, 3);
-    if (homeLocation) {
-      for (const otherLoc of otherLocations) {
-        try {
-          const response = await axios.post(
-            `${API_URL}/api/v1/commute/search`,
-            {
-              mode: 'EXPLORER',
-              origin: { latitude: homeLocation.latitude, longitude: homeLocation.longitude },
-              destination: { latitude: otherLoc.latitude, longitude: otherLoc.longitude },
-            },
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
-
-          generatedRoutes.push({
-            id: `home-to-${otherLoc.id}`,
-            title: `To ${otherLoc.label}`,
-            from: homeLocation,
-            to: otherLoc,
-            estimate: response.data,
-            icon: 'location',
-          });
-        } catch (error) {
-          console.error(`Load route to ${otherLoc.label} error:`, error);
-        }
-      }
-    }
-
-    setRoutes(generatedRoutes);
-  };
-
-  const handleSmartBook = async (estimate: any) => {
-    if (!estimate) return;
-
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      await axios.post(
-        `${API_URL}/api/v1/commute/handoff`,
-        { commuteLogId: estimate.commuteLogId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const supported = await Linking.canOpenURL(estimate.deepLinkUrl);
-      if (supported) {
-        await Linking.openURL(estimate.deepLinkUrl);
-      } else {
-        Alert.alert('Error', 'Cannot open Uber app. Please install Uber.');
-      }
     } catch (error) {
-      console.error('Smart book error:', error);
-      Alert.alert('Error', 'Failed to open Uber. Please try again.');
+      console.error('Load user error:', error);
     }
   };
 
-  const handleViewSurgeRadar = (route: any) => {
-    router.push({
-      pathname: '/surge-radar',
-      params: {
-        originLat: route.from.latitude,
-        originLng: route.from.longitude,
-        destLat: route.to.latitude,
-        destLng: route.to.longitude,
-        routeName: `${route.from.label} → ${route.to.label}`,
-      },
-    });
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadUserData();
+    setRefreshing(false);
   };
 
   const getGreeting = () => {
@@ -238,129 +63,324 @@ export default function HomeScreen() {
     return 'Good evening';
   };
 
-  const getSurgeEmoji = (surgePercent?: number) => {
-    if (!surgePercent || surgePercent < 5) return '🟢';
-    if (surgePercent < 15) return '🟡';
-    return '🔴';
+  const getSurgeVariant = (multiplier: number) => {
+    if (multiplier === 0) return 'surge-none';
+    if (multiplier < 1.2) return 'surge-low';
+    if (multiplier < 1.5) return 'surge-medium';
+    return 'surge-high';
   };
 
-  // Empty state when no locations
-  if (!loading && locations.length === 0) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.emptyContainer}>
-          <Ionicons name= "location-outline" size={80} color="#6B7280" />
-          <Text style={styles.emptyTitle}>No Locations Added</Text>
-          <Text style={styles.emptyText}>
-            Add your frequently visited places to get smart commute estimates and surge alerts
-          </Text>
-          <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => router.push('/locations-manager')}
-          >
-            <Text style={styles.primaryButtonText}>Add Locations</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView 
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView
         style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#FF6B35']}
-            tintColor="#FF6B35"
+            tintColor={Colors.primary.main}
           />
         }
       >
-        {error && (
-          <View style={styles.errorBanner}>
-            <Ionicons name="warning" size={20} color="#EF4444" />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
-
+        {/* Header with User Greeting */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>
-              {getGreeting()}, {user?.name || 'there'}! ☀️
-            </Text>
-            <Text style={styles.time}>
-              {new Date().toLocaleTimeString('en-US', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={() => router.push('/locations-manager')}>
-            <Ionicons name="settings-outline" size={28} color="#6B7280" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Dynamic Route Cards */}
-        {routes.map((route) => (
-          <Animated.View key={route.id} style={[styles.cardWrapper, { transform: [{ scale: pulseAnim }] }]}>
-            <View style={[styles.card, styles.pulsingCard]}>
-              <View style={styles.liveDot} />
-              <View style={styles.cardHeader}>
-                <Ionicons name={route.icon} size={24} color="#FF6B35" />
-                <Text style={styles.cardTitle}>{route.title}</Text>
-              </View>
-              <Text style={styles.route}>
-                {route.from.label} → {route.to.label}
+          <View style={styles.headerLeft}>
+            <View style={styles.avatarContainer}>
+              <Text style={styles.avatarText}>
+                {user?.name?.charAt(0).toUpperCase() || 'V'}
               </Text>
-              {route.estimate ? (
-                <>
-                  <View style={styles.estimateRow}>
-                    <Text style={styles.eta}>{route.estimate.etaMinutes} min</Text>
-                    <Text style={styles.price}>
-                      ₹{route.estimate.estimateMin} {getSurgeEmoji(route.estimate.surgePercent)}
-                    </Text>
-                  </View>
-                  <View style={styles.buttonRow}>
-                    <TouchableOpacity
-                      style={styles.primaryButtonSmall}
-                      onPress={() => handleSmartBook(route.estimate)}
-                    >
-                      <Text style={styles.primaryButtonTextSmall}>🚀 Smart Book</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.secondaryButtonSmall}
-                      onPress={() => handleViewSurgeRadar(route)}
-                    >
-                      <Text style={styles.secondaryButtonTextSmall}>Surge Radar</Text>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              ) : (
-                <Text style={styles.loadingText}>Loading...</Text>
-              )}
             </View>
-          </Animated.View>
-        ))}
-
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity
-            style={styles.quickAction}
-            onPress={() => router.push('/(tabs)/explorer')}
-          >
-            <Ionicons name="search" size={24} color="#3B82F6" />
-            <Text style={styles.quickActionText}>Explore Routes</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.quickAction}
-            onPress={() => router.push('/locations-manager')}
-          >
-            <Ionicons name="add-circle-outline" size={24} color="#10B981" />
-            <Text style={styles.quickActionText}>Add Location</Text>
+            <View>
+              <Text style={styles.greeting}>Hello {user?.name || 'Vishal'},</Text>
+              <Text style={styles.subtitle}>Where to go?</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.notificationButton}>
+            <Ionicons name="notifications-outline" size={24} color={Colors.text.primary} />
+            <View style={styles.notificationDot} />
           </TouchableOpacity>
         </View>
+
+        {/* Search Bar */}
+        <TouchableOpacity
+          style={styles.searchBar}
+          onPress={() => router.push('/search')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="search" size={20} color={Colors.text.secondary} />
+          <Text style={styles.searchPlaceholder}>Enter destination</Text>
+          <View style={styles.searchActions}>
+            <TouchableOpacity style={styles.locationButton}>
+              <Ionicons name="locate" size={18} color={Colors.text.inverse} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.sendButton}>
+              <Ionicons name="paper-plane-outline" size={18} color={Colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+
+        {/* Ride Type Selector */}
+        <View style={styles.rideTypeContainer}>
+          <TouchableOpacity
+            style={[
+              styles.rideTypeCard,
+              selectedRideType === 'car' && styles.rideTypeCardActive,
+            ]}
+            onPress={() => setSelectedRideType('car')}
+          >
+            {selectedRideType === 'car' && (
+              <View style={styles.checkmark}>
+                <Ionicons name="checkmark" size={16} color={Colors.text.inverse} />
+              </View>
+            )}
+            <Ionicons
+              name="car-outline"
+              size={32}
+              color={selectedRideType === 'car' ? Colors.text.inverse : Colors.text.secondary}
+            />
+            <Text
+              style={[
+                styles.rideTypeText,
+                selectedRideType === 'car' && styles.rideTypeTextActive,
+              ]}
+            >
+              Car
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.rideTypeCard,
+              selectedRideType === 'rickshaw' && styles.rideTypeCardActive,
+            ]}
+            onPress={() => setSelectedRideType('rickshaw')}
+          >
+            {selectedRideType === 'rickshaw' && (
+              <View style={styles.checkmark}>
+                <Ionicons name="checkmark" size={16} color={Colors.text.inverse} />
+              </View>
+            )}
+            <Ionicons
+              name="bicycle-outline"
+              size={32}
+              color={selectedRideType === 'rickshaw' ? Colors.text.inverse : Colors.text.secondary}
+            />
+            <Text
+              style={[
+                styles.rideTypeText,
+                selectedRideType === 'rickshaw' && styles.rideTypeTextActive,
+              ]}
+            >
+              Rickshaw
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.rideTypeCard,
+              selectedRideType === 'bike' && styles.rideTypeCardActive,
+            ]}
+            onPress={() => setSelectedRideType('bike')}
+          >
+            {selectedRideType === 'bike' && (
+              <View style={styles.checkmark}>
+                <Ionicons name="checkmark" size={16} color={Colors.text.inverse} />
+              </View>
+            )}
+            <Ionicons
+              name="bicycle"
+              size={32}
+              color={selectedRideType === 'bike' ? Colors.text.inverse : Colors.text.secondary}
+            />
+            <Text
+              style={[
+                styles.rideTypeText,
+                selectedRideType === 'bike' && styles.rideTypeTextActive,
+              ]}
+            >
+              Bike
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* HailO Brain - Smart Recommendation */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="bulb" size={20} color={Colors.primary.main} />
+            <Text style={styles.sectionTitle}>HailO Brain</Text>
+            <Text style={styles.sectionSubtitle}>Smart recommendation</Text>
+          </View>
+
+          <View style={styles.brainCard}>
+            <View style={styles.brainCardHeader}>
+              <View style={styles.brainLocationInfo}>
+                <Ionicons name="home" size={24} color={Colors.primary.main} />
+                <View style={styles.brainTextInfo}>
+                  <Text style={styles.brainTitle}>Home</Text>
+                  <Text style={styles.brainSubtext}>Your usual 6:30 PM ride</Text>
+                </View>
+              </View>
+              <View style={styles.brainPriceInfo}>
+                <Text style={styles.brainSavings}>Save 18%</Text>
+                <Text style={styles.brainPrice}>~₹120</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.bookNowButton}>
+              <Text style={styles.bookNowText}>Book Now</Text>
+              <Ionicons name="arrow-forward" size={18} color={Colors.text.inverse} />
+            </TouchableOpacity>
+
+            <View style={styles.brainAdvice}>
+              <Ionicons name="information-circle" size={16} color={Colors.text.secondary} />
+              <Text style={styles.brainAdviceText}>
+                Wait 15 mins for no surge. Uber Go is cheapest via Uber at ₹98
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Surge Radar */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="flash" size={20} color={Colors.secondary.orange} />
+              <Text style={styles.sectionTitle}>Surge Radar</Text>
+            </View>
+            <TouchableOpacity>
+              <Text style={styles.viewAllLink}>View all &gt;</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.surgeScroll}
+          >
+            {surgeData.map((item, index) => (
+              <View key={index} style={styles.surgePill}>
+                <PillBadge
+                  label={item.multiplier === 0 ? 'No surge' : `${item.multiplier}x`}
+                  variant={getSurgeVariant(item.multiplier)}
+                />
+                <Text style={styles.surgeTime}>{item.time}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* Quick Book */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Book</Text>
+
+          <TouchableOpacity style={styles.quickBookCard}>
+            <RoundIcon
+              icon={<Ionicons name="home" size={24} color={Colors.primary.main} />}
+              backgroundColor={Colors.primary.subtle}
+              size={48}
+            />
+            <View style={styles.quickBookInfo}>
+              <Text style={styles.quickBookTitle}>Home</Text>
+              <Text style={styles.quickBookSubtext}>HSR Layout</Text>
+            </View>
+            <View style={styles.quickBookRight}>
+              <Text style={styles.quickBookPrice}>~₹120</Text>
+              <Text style={styles.quickBookTime}>18 min</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.quickBookCard}>
+            <RoundIcon
+              icon={<Ionicons name="briefcase" size={24} color={Colors.primary.main} />}
+              backgroundColor={Colors.primary.subtle}
+              size={48}
+            />
+            <View style={styles.quickBookInfo}>
+              <Text style={styles.quickBookTitle}>Office</Text>
+              <Text style={styles.quickBookSubtext}>Koramangala</Text>
+            </View>
+            <View style={styles.quickBookRight}>
+              <Text style={styles.quickBookPrice}>~₹95</Text>
+              <Text style={styles.quickBookTime}>12 min</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
+
+        {/* This Month - Savings */}
+        <TouchableOpacity style={styles.savingsCard}>
+          <View style={styles.savingsIcon}>
+            <Ionicons name="trending-down" size={24} color={Colors.text.inverse} />
+          </View>
+          <View style={styles.savingsInfo}>
+            <Text style={styles.savingsTitle}>This Month</Text>
+            <Text style={styles.savingsSubtext}>You saved ₹850 with HailO</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Colors.text.inverse} />
+        </TouchableOpacity>
+
+        {/* Pricing Factors */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="stats-chart" size={20} color={Colors.primary.main} />
+              <Text style={styles.sectionTitle}>Pricing Factors</Text>
+            </View>
+            <View style={styles.liveIndicator}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>Live</Text>
+            </View>
+          </View>
+
+          <View style={styles.factorCard}>
+            <RoundIcon
+              icon={<Ionicons name="cloud-outline" size={24} color={Colors.secondary.teal} />}
+              backgroundColor="#D1FAE5"
+              size={48}
+            />
+            <View style={styles.factorInfo}>
+              <Text style={styles.factorTitle}>Weather Impact</Text>
+              <Text style={styles.factorSubtext}>Light rain expected</Text>
+            </View>
+            <View style={styles.factorBadge}>
+              <Text style={styles.factorPercent}>+8%</Text>
+            </View>
+          </View>
+
+          <View style={styles.factorCard}>
+            <RoundIcon
+              icon={<Ionicons name="car-outline" size={24} color={Colors.secondary.orange} />}
+              backgroundColor="#FEE2E2"
+              size={48}
+            />
+            <View style={styles.factorInfo}>
+              <Text style={styles.factorTitle}>Traffic Density</Text>
+              <Text style={styles.factorSubtext}>Moderate traffic</Text>
+            </View>
+            <View style={styles.factorBadge}>
+              <Text style={styles.factorPercent}>+12%</Text>
+            </View>
+          </View>
+
+          <View style={styles.factorCard}>
+            <RoundIcon
+              icon={<Ionicons name="time-outline" size={24} color={Colors.error} />}
+              backgroundColor="#FEE2E2"
+              size={48}
+            />
+            <View style={styles.factorInfo}>
+              <Text style={styles.factorTitle}>Peak Hours</Text>
+              <Text style={styles.factorSubtext}>Evening rush (5-7 PM)</Text>
+            </View>
+            <View style={styles.factorBadge}>
+              <Text style={styles.factorPercent}>+15%</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -369,196 +389,384 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.background.secondary,
   },
   scrollView: {
     flex: 1,
   },
+
+  // Header Styles
   header: {
-    padding: 24,
-    paddingBottom: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
-  greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  time: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  cardWrapper: {
-    marginHorizontal: 24,
-    marginBottom: 16,
-  },
-  card: {
-    backgroundColor: '#FFFFFF',
+  avatarContainer: {
+    width: 48,
+    height: 48,
     borderRadius: 24,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
-    position: 'relative',
-  },
-  pulsingCard: {
-    borderWidth: 2,
-    borderColor: '#FF6B35',
-  },
-  liveDot: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#10B981',
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginLeft: 8,
-  },
-  route: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 12,
-  },
-  estimateRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  eta: {
-    fontSize: 18,
-    color: '#1F2937',
-    fontWeight: '600',
-  },
-  price: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FF6B35',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  primaryButtonSmall: {
-    flex: 1,
-    backgroundColor: '#FF6B35',
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-  },
-  primaryButtonTextSmall: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  secondaryButtonSmall: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-  },
-  secondaryButtonTextSmall: {
-    color: '#FF6B35',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  errorBanner: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: 24,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#DC2626',
-    fontWeight: '500',
-  },
-  emptyContainer: {
-    flex: 1,
+    backgroundColor: Colors.primary.main,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 64,
   },
-  emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginTop: 24,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  primaryButton: {
-    backgroundColor: '#FF6B35',
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+  avatarText: {
+    fontSize: 20,
     fontWeight: '600',
+    color: Colors.text.inverse,
   },
-  quickActions: {
+  greeting: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
+  notificationButton: {
+    position: 'relative',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.primary.main,
+  },
+
+  // Search Bar Styles
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background.card,
+    marginHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary.light,
+    gap: 12,
+  },
+  searchPlaceholder: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.text.secondary,
+  },
+  searchActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  locationButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.secondary.teal,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sendButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.neutral[200],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Ride Type Selector
+  rideTypeContainer: {
     flexDirection: 'row',
     gap: 12,
-    paddingHorizontal: 24,
-    marginTop: 8,
-    marginBottom: 24,
+    paddingHorizontal: 20,
+    marginTop: 20,
   },
-  quickAction: {
+  rideTypeCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.background.card,
     borderRadius: 16,
-    padding: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    gap: 8,
+    position: 'relative',
   },
-  quickActionText: {
+  rideTypeCardActive: {
+    backgroundColor: Colors.primary.dark,
+  },
+  checkmark: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rideTypeText: {
     fontSize: 14,
-    color: '#1F2937',
     fontWeight: '600',
-    marginTop: 8,
+    color: Colors.text.secondary,
+  },
+  rideTypeTextActive: {
+    color: Colors.text.inverse,
+  },
+
+  // Section Styles
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginLeft: 4,
+  },
+  viewAllLink: {
+    fontSize: 14,
+    color: Colors.primary.main,
+    fontWeight: '600',
+  },
+
+  // HailO Brain Card
+  brainCard: {
+    backgroundColor: Colors.background.card,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
+    gap: 12,
+  },
+  brainCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  brainLocationInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  brainTextInfo: {
+    flex: 1,
+  },
+  brainTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  brainSubtext: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
+  brainPriceInfo: {
+    alignItems: 'flex-end',
+  },
+  brainSavings: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.secondary.teal,
+  },
+  brainPrice: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginTop: 2,
+  },
+  bookNowButton: {
+    backgroundColor: Colors.primary.main,
+    borderRadius: 12,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bookNowText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.inverse,
+  },
+  brainAdvice: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: Colors.neutral[100],
+    padding: 12,
+    borderRadius: 8,
+  },
+  brainAdviceText: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.text.secondary,
+    lineHeight: 18,
+  },
+
+  // Surge Radar
+  surgeScroll: {
+    gap: 12,
+    paddingVertical: 8,
+  },
+  surgePill: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  surgeTime: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+  },
+
+  // Quick Book Cards
+  quickBookCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background.card,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
+    gap: 12,
+  },
+  quickBookInfo: {
+    flex: 1,
+  },
+  quickBookTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  quickBookSubtext: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
+  quickBookRight: {
+    alignItems: 'flex-end',
+  },
+  quickBookPrice: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  quickBookTime: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
+
+  // Savings Card
+  savingsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.secondary.purple,
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 20,
+    marginTop: 24,
+    gap: 12,
+  },
+  savingsIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  savingsInfo: {
+    flex: 1,
+  },
+  savingsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text.inverse,
+  },
+  savingsSubtext: {
+    fontSize: 14,
+    color: Colors.text.inverse,
+    opacity: 0.9,
+    marginTop: 2,
+  },
+
+  // Pricing Factors
+  factorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background.card,
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
+    gap: 12,
+  },
+  factorInfo: {
+    flex: 1,
+  },
+  factorTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  factorSubtext: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginTop: 2,
+  },
+  factorBadge: {
+    backgroundColor: Colors.surge.low,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  factorPercent: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.background.card,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.error,
+  },
+  liveText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text.primary,
   },
 });
