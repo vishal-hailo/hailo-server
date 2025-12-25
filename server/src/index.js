@@ -8,6 +8,7 @@ import commuteRoutes from './routes/commute.js';
 import insightsRoutes from './routes/insights.js';
 import surgeRoutes from './routes/surge.js';
 import pricingRoutes from './routes/pricing.js';
+import recommendationsRoutes from './routes/recommendations.js';
 
 dotenv.config();
 
