@@ -39,13 +39,7 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarIcon: ({ color, focused }) => (
-            focused ? (
-              <View style={styles.activeIcon}>
-                <Ionicons name="home" size={24} color="#FFFFFF" />
-              </View>
-            ) : (
-              <Ionicons name="home-outline" size={26} color={color} />
-            )
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -54,7 +48,7 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={26} color={color} />
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -63,7 +57,7 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'map' : 'map-outline'} size={26} color={color} />
+            <Ionicons name={focused ? 'map' : 'map-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -72,7 +66,13 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={26} color={color} />
+            focused ? (
+              <View style={styles.activeIcon}>
+                <Ionicons name="person" size={24} color="#FFFFFF" />
+              </View>
+            ) : (
+              <Ionicons name="person-outline" size={24} color={color} />
+            )
           ),
         }}
       />
