@@ -5,53 +5,34 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Switch,
+  Dimensions,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
+import Colors from '../../constants/Colors';
 
-// API_URL from environment variable
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+const { width } = Dimensions.get('window');
 
-export default function SettingsScreen() {
+export default function ProfileScreen() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [locations, setLocations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [dailyNudge, setDailyNudge] = useState(true);
-  const [surgeAlerts, setSurgeAlerts] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'insights'>('overview');
 
   useEffect(() => {
-    loadData();
+    loadUserData();
   }, []);
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadData();
-    }, [])
-  );
-
-  const loadData = async () => {
+  const loadUserData = async () => {
     try {
       const userStr = await AsyncStorage.getItem('user');
       if (userStr) {
         setUser(JSON.parse(userStr));
       }
-
-      const token = await AsyncStorage.getItem('authToken');
-      const response = await axios.get(`${API_URL}/api/v1/locations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setLocations(response.data || []);
     } catch (error) {
-      console.error('Load data error:', error);
-    } finally {
-      setLoading(false);
+      console.error('Load user error:', error);
     }
   };
 
@@ -83,177 +64,294 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This action cannot be undone. All your data will be permanently deleted.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await AsyncStorage.clear();
-            Alert.alert('Success', 'Your account has been deleted.');
-            router.replace('/auth/phone');
-          },
-        },
-      ]
-    );
+  // Mock data - will be replaced with API calls later
+  const stats = {
+    totalRides: 24,
+    distance: 186,
+    timeSaved: 4.5,
+    avgRating: 4.9,
+    percentageChange: {
+      rides: 8,
+      distance: 12,
+      time: 15,
+      rating: 0,
+    }
   };
 
-  const getIconForType = (type: string) => {
-    if (type === 'HOME') return 'home';
-    if (type === 'OFFICE') return 'briefcase';
-    return 'location';
-  };
+  const savingsBreakdown = [
+    {
+      id: 1,
+      icon: 'flash',
+      iconColor: '#F97316',
+      iconBg: '#FED7AA',
+      title: 'Surge Timing',
+      subtitle: 'Avoided 8 peak surge periods',
+      amount: 580,
+    },
+    {
+      id: 2,
+      icon: 'cloudy',
+      iconColor: '#3B82F6',
+      iconBg: '#DBEAFE',
+      title: 'Weather Predictions',
+      subtitle: 'Pre-booked before 3 rain events',
+      amount: 120,
+    },
+    {
+      id: 3,
+      icon: 'stats-chart',
+      iconColor: '#8B5CF6',
+      iconBg: '#EDE9FE',
+      title: 'Traffic Optimization',
+      subtitle: 'Optimal route timing 12 times',
+      amount: 150,
+    },
+  ];
 
-  const getColorForType = (type: string) => {
-    if (type === 'HOME') return '#FF6B35';
-    if (type === 'OFFICE') return '#6B46C1';
-    return '#10B981';
-  };
+  const topRoutes = [
+    { id: 1, from: 'Home', to: 'Office', rides: 12, saved: 180 },
+    { id: 2, from: 'Office', to: 'Home', rides: 10, saved: 150 },
+    { id: 3, from: 'Home', to: 'Phoenix Mall', rides: 4, saved: 80 },
+  ];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header Section */}
         <View style={styles.header}>
-          <Text style={styles.title}>Settings</Text>
-          {user && (
-            <View style={styles.userBadge}>
-              <Ionicons name="person-circle" size={24} color="#FF6B35" />
-              <Text style={styles.userName}>{user.name}</Text>
+          <View style={styles.profileInfo}>
+            <View style={styles.avatar}>
+              <Ionicons name="person" size={32} color={Colors.text.inverse} />
             </View>
-          )}
+            <View style={styles.userDetails}>
+              <Text style={styles.userName}>{user?.name || 'Vishal Rao'}</Text>
+              <Text style={styles.userPhone}>{user?.phone || '+91 98765 43210'}</Text>
+              <View style={styles.ratingContainer}>
+                <Ionicons name="star" size={16} color="#F59E0B" />
+                <Text style={styles.ratingText}>{stats.avgRating} rider rating</Text>
+              </View>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.settingsIcon}>
+            <Ionicons name="settings-outline" size={24} color={Colors.text.primary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Saved Locations */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>📍 Saved Locations</Text>
-            <TouchableOpacity onPress={() => router.push('/locations-manager')}>
-              <Ionicons name="settings-outline" size={20} color="#6B7280" />
-            </TouchableOpacity>
+        {/* Smart Rider PRO Badge */}
+        <TouchableOpacity style={styles.proBadge}>
+          <View style={styles.proIcon}>
+            <Ionicons name="ribbon" size={24} color={Colors.primary.main} />
           </View>
-          
-          {loading ? (
-            <ActivityIndicator size="small" color="#FF6B35" style={{ paddingVertical: 20 }} />
-          ) : locations.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No locations saved yet</Text>
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => router.push('/locations-manager')}
-              >
-                <Ionicons name="add-circle" size={20} color="#FF6B35" />
-                <Text style={styles.addButtonText}>Add Location</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              {locations.slice(0, 3).map((location: any) => (
-                <TouchableOpacity
-                  key={location.id}
-                  style={styles.item}
-                  onPress={() => router.push('/locations-manager')}
-                >
-                  <View style={styles.itemLeft}>
-                    <Ionicons
-                      name={getIconForType(location.type)}
-                      size={24}
-                      color={getColorForType(location.type)}
-                    />
-                    <View style={styles.itemText}>
-                      <Text style={styles.itemTitle}>{location.label}</Text>
-                      <Text style={styles.itemSubtitle} numberOfLines={1}>
-                        {location.address}
-                      </Text>
-                    </View>
+          <View style={styles.proInfo}>
+            <Text style={styles.proTitle}>Smart Rider</Text>
+            <Text style={styles.proSubtitle}>Top 10% savings in your area</Text>
+          </View>
+          <View style={styles.proTag}>
+            <Text style={styles.proTagText}>PRO</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+        </TouchableOpacity>
+
+        {/* Tabs */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'overview' && styles.tabActive]}
+            onPress={() => setActiveTab('overview')}
+          >
+            <Text style={[styles.tabText, activeTab === 'overview' && styles.tabTextActive]}>
+              Overview
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'insights' && styles.tabActive]}
+            onPress={() => setActiveTab('insights')}
+          >
+            <Text style={[styles.tabText, activeTab === 'insights' && styles.tabTextActive]}>
+              Insights
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Content based on active tab */}
+        {activeTab === 'overview' ? (
+          <View style={styles.content}>
+            {/* Stats Grid */}
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="car-sport" size={20} color={Colors.primary.main} />
+                </View>
+                {stats.percentageChange.rides > 0 && (
+                  <View style={styles.percentageTag}>
+                    <Ionicons name="trending-up" size={12} color="#10B981" />
+                    <Text style={styles.percentageText}>+{stats.percentageChange.rides}%</Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={20} color="#6B7280" />
-                </TouchableOpacity>
+                )}
+                <Text style={styles.statValue}>{stats.totalRides}</Text>
+                <Text style={styles.statLabel}>Total Rides</Text>
+              </View>
+
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="navigate" size={20} color={Colors.primary.main} />
+                </View>
+                {stats.percentageChange.distance > 0 && (
+                  <View style={styles.percentageTag}>
+                    <Ionicons name="trending-up" size={12} color="#10B981" />
+                    <Text style={styles.percentageText}>+{stats.percentageChange.distance}%</Text>
+                  </View>
+                )}
+                <Text style={styles.statValue}>{stats.distance} km</Text>
+                <Text style={styles.statLabel}>Distance</Text>
+              </View>
+
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="time" size={20} color={Colors.primary.main} />
+                </View>
+                {stats.percentageChange.time > 0 && (
+                  <View style={styles.percentageTag}>
+                    <Ionicons name="trending-up" size={12} color="#10B981" />
+                    <Text style={styles.percentageText}>+{stats.percentageChange.time}%</Text>
+                  </View>
+                )}
+                <Text style={styles.statValue}>{stats.timeSaved} hrs</Text>
+                <Text style={styles.statLabel}>Time Saved</Text>
+              </View>
+
+              <View style={styles.statCard}>
+                <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="star" size={20} color={Colors.primary.main} />
+                </View>
+                <Text style={styles.statValue}>{stats.avgRating}</Text>
+                <Text style={styles.statLabel}>Avg Rating</Text>
+              </View>
+            </View>
+
+            {/* Smart Savings Breakdown */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="wallet" size={20} color={Colors.primary.main} />
+                <Text style={styles.sectionTitle}>Smart Savings Breakdown</Text>
+              </View>
+
+              {savingsBreakdown.map((item) => (
+                <View key={item.id} style={styles.savingsItem}>
+                  <View style={[styles.savingsIcon, { backgroundColor: item.iconBg }]}>
+                    <Ionicons name={item.icon as any} size={20} color={item.iconColor} />
+                  </View>
+                  <View style={styles.savingsInfo}>
+                    <Text style={styles.savingsTitle}>{item.title}</Text>
+                    <Text style={styles.savingsSubtitle}>{item.subtitle}</Text>
+                  </View>
+                  <Text style={styles.savingsAmount}>₹{item.amount}</Text>
+                </View>
               ))}
-
-              {locations.length > 3 && (
-                <Text style={styles.moreText}>+{locations.length - 3} more locations</Text>
-              )}
-
-              <TouchableOpacity
-                style={styles.addButton}
-                onPress={() => router.push('/locations-manager')}
-              >
-                <Ionicons name="add-circle" size={20} color="#FF6B35" />
-                <Text style={styles.addButtonText}>Manage Locations</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-
-        {/* Notifications */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔔 Notifications</Text>
-          
-          <View style={styles.item}>
-            <View style={styles.itemLeft}>
-              <View style={styles.itemText}>
-                <Text style={styles.itemTitle}>Daily commute nudge</Text>
-                <Text style={styles.itemSubtitle}>Morning & evening reminders</Text>
-              </View>
             </View>
-            <Switch
-              value={dailyNudge}
-              onValueChange={setDailyNudge}
-              trackColor={{ false: '#E5E7EB', true: '#FF6B35' }}
-              thumbColor="#FFFFFF"
-            />
+
+            {/* Top Routes */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="navigate-circle" size={20} color={Colors.primary.main} />
+                <Text style={styles.sectionTitle}>Top Routes</Text>
+              </View>
+
+              {topRoutes.map((route) => (
+                <View key={route.id} style={styles.routeItem}>
+                  <View style={styles.routeNumber}>
+                    <Text style={styles.routeNumberText}>{route.id}</Text>
+                  </View>
+                  <View style={styles.routeInfo}>
+                    <Text style={styles.routeText}>
+                      {route.from} → {route.to}
+                    </Text>
+                    <Text style={styles.routeRides}>{route.rides} rides</Text>
+                  </View>
+                  <Text style={styles.routeSaved}>saved ₹{route.saved}</Text>
+                </View>
+              ))}
+            </View>
           </View>
+        ) : (
+          <View style={styles.content}>
+            {/* Insights Content - Total Saved this Month */}
+            <View style={styles.totalSavedCard}>
+              <Text style={styles.totalSavedLabel}>Total Saved this month</Text>
+              <View style={styles.totalSavedRow}>
+                <Text style={styles.totalSavedAmount}>₹850</Text>
+                <View style={styles.totalSavedBadge}>
+                  <Ionicons name="trending-up" size={14} color="#10B981" />
+                  <Text style={styles.totalSavedPercentage}>+23%</Text>
+                </View>
+              </View>
 
-          <View style={styles.item}>
-            <View style={styles.itemLeft}>
-              <View style={styles.itemText}>
-                <Text style={styles.itemTitle}>Surge alerts</Text>
-                <Text style={styles.itemSubtitle}>When prices drop significantly</Text>
+              <View style={styles.savingsBreakdownList}>
+                <View style={styles.breakdownRow}>
+                  <View style={[styles.breakdownDot, { backgroundColor: '#10B981' }]} />
+                  <Text style={styles.breakdownLabel}>Surge avoided</Text>
+                  <Text style={styles.breakdownAmount}>₹580</Text>
+                </View>
+                <View style={styles.breakdownRow}>
+                  <View style={[styles.breakdownDot, { backgroundColor: '#3B82F6' }]} />
+                  <Text style={styles.breakdownLabel}>Weather timing</Text>
+                  <Text style={styles.breakdownAmount}>₹120</Text>
+                </View>
+                <View style={styles.breakdownRow}>
+                  <View style={[styles.breakdownDot, { backgroundColor: '#8B5CF6' }]} />
+                  <Text style={styles.breakdownLabel}>HailO Brain</Text>
+                  <Text style={styles.breakdownAmount}>₹150</Text>
+                </View>
               </View>
             </View>
-            <Switch
-              value={surgeAlerts}
-              onValueChange={setSurgeAlerts}
-              trackColor={{ false: '#E5E7EB', true: '#FF6B35' }}
-              thumbColor="#FFFFFF"
-            />
           </View>
-        </View>
+        )}
 
-        {/* Privacy & Data */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔒 Privacy & Data</Text>
-          
-          <TouchableOpacity style={styles.item}>
-            <View style={styles.itemLeft}>
-              <View style={styles.itemText}>
-                <Text style={styles.itemTitle}>View my data usage</Text>
-              </View>
+        {/* Menu Items */}
+        <View style={styles.menuSection}>
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={[styles.menuIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="gift" size={20} color="#F59E0B" />
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#6B7280" />
+            <View style={styles.menuInfo}>
+              <Text style={styles.menuTitle}>Rewards & Offers</Text>
+            </View>
+            <View style={styles.menuBadge}>
+              <Text style={styles.menuBadgeText}>2 new</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
-            <Text style={styles.deleteButtonText}>Delete account & data</Text>
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={[styles.menuIcon, { backgroundColor: '#E5E7EB' }]}>
+              <Ionicons name="settings" size={20} color={Colors.text.secondary} />
+            </View>
+            <View style={styles.menuInfo}>
+              <Text style={styles.menuTitle}>Settings</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
           </TouchableOpacity>
-        </View>
 
-        {/* App Info */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.item} onPress={handleLogout}>
-            <View style={styles.itemLeft}>
-              <Ionicons name="log-out" size={24} color="#EF4444" />
-              <Text style={[styles.itemTitle, { color: '#EF4444' }]}>Logout</Text>
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={[styles.menuIcon, { backgroundColor: '#E5E7EB' }]}>
+              <Ionicons name="help-circle" size={20} color={Colors.text.secondary} />
+            </View>
+            <View style={styles.menuInfo}>
+              <Text style={styles.menuTitle}>Help & Support</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.menuItem, styles.menuItemLast]} onPress={handleLogout}>
+            <View style={[styles.menuIcon, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="log-out" size={20} color="#EF4444" />
+            </View>
+            <View style={styles.menuInfo}>
+              <Text style={[styles.menuTitle, { color: '#EF4444' }]}>Logout</Text>
             </View>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.version}>HailO v1.0.0</Text>
-        <Text style={styles.versionSubtitle}>Mumbai's Commute Genius</Text>
+        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -262,127 +360,385 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.background.secondary,
   },
   scrollView: {
     flex: 1,
   },
+  
+  // Header
   header: {
-    padding: 24,
-    paddingBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 20,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  userBadge: {
+  profileInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    flex: 1,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.primary.main,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  userDetails: {
+    flex: 1,
   },
   userName: {
-    fontSize: 16,
-    color: '#6B7280',
-    fontWeight: '500',
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginBottom: 4,
   },
-  section: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 16,
+  userPhone: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginBottom: 6,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  ratingText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  settingsIcon: {
+    padding: 8,
+  },
+
+  // PRO Badge
+  proBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
     borderRadius: 16,
     padding: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  proIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.background.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  proInfo: {
+    flex: 1,
+  },
+  proTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 2,
+  },
+  proSubtitle: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+  },
+  proTag: {
+    backgroundColor: Colors.primary.main,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  proTagText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.text.inverse,
+  },
+
+  // Tabs
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 12,
+    marginBottom: 20,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: Colors.background.card,
+    alignItems: 'center',
+  },
+  tabActive: {
+    backgroundColor: Colors.text.primary,
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text.secondary,
+  },
+  tabTextActive: {
+    color: Colors.text.inverse,
+  },
+
+  // Content
+  content: {
+    paddingHorizontal: 20,
+  },
+
+  // Stats Grid
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 20,
+  },
+  statCard: {
+    width: (width - 52) / 2,
+    backgroundColor: Colors.background.card,
+    borderRadius: 16,
+    padding: 16,
+    position: 'relative',
+  },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  percentageTag: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  percentageText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+  },
+
+  // Section
+  section: {
+    backgroundColor: Colors.background.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
   },
   sectionHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text.primary,
   },
-  item: {
+
+  // Savings Items
+  savingsItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    backgroundColor: Colors.background.secondary,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  savingsIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  savingsInfo: {
+    flex: 1,
+  },
+  savingsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 2,
+  },
+  savingsSubtitle: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+  },
+  savingsAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+
+  // Route Items
+  routeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: Colors.background.secondary,
   },
-  itemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flex: 1,
-  },
-  itemText: {
-    flex: 1,
-  },
-  itemTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  itemSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 2,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginBottom: 12,
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  routeNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: Colors.background.secondary,
     justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    marginTop: 8,
-  },
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FF6B35',
-  },
-  moreText: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    paddingVertical: 8,
-  },
-  deleteButton: {
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
-    padding: 12,
     alignItems: 'center',
-    marginTop: 12,
+    marginRight: 12,
   },
-  deleteButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
-  version: {
+  routeNumberText: {
     fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 24,
+    fontWeight: '600',
+    color: Colors.primary.main,
   },
-  versionSubtitle: {
+  routeInfo: {
+    flex: 1,
+  },
+  routeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 2,
+  },
+  routeRides: {
     fontSize: 12,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 32,
+    color: Colors.text.secondary,
+  },
+  routeSaved: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+
+  // Total Saved Card (Insights Tab)
+  totalSavedCard: {
+    backgroundColor: Colors.background.card,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  totalSavedLabel: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginBottom: 8,
+  },
+  totalSavedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  totalSavedAmount: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#10B981',
+    marginRight: 12,
+  },
+  totalSavedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  totalSavedPercentage: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  savingsBreakdownList: {
+    gap: 12,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  breakdownDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  breakdownLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: Colors.text.primary,
+  },
+  breakdownAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+
+  // Menu Section
+  menuSection: {
+    backgroundColor: Colors.background.card,
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.background.secondary,
+  },
+  menuItemLast: {
+    borderBottomWidth: 0,
+  },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  menuInfo: {
+    flex: 1,
+  },
+  menuTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  menuBadge: {
+    backgroundColor: Colors.primary.main,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+  },
+  menuBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.text.inverse,
   },
 });
