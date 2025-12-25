@@ -70,9 +70,7 @@ export const RoundIcon: React.FC<RoundIconProps> = ({
   );
 };
 
-interface DayS
-
-electorProps {
+interface DaySelectorProps {
   days: boolean[];  // [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
   onDayPress?: (index: number) => void;
   disabled?: boolean;
