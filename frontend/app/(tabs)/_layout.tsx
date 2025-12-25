@@ -17,30 +17,34 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.secondary,
         tabBarStyle: {
-          height: 70,
-          paddingBottom: 10,
-          paddingTop: 10,
-          borderTopWidth: 1,
-          borderTopColor: Colors.border,
+          height: 65,
+          paddingBottom: 8,
+          paddingTop: 8,
+          borderTopWidth: 0,
           backgroundColor: Colors.background,
+          elevation: 8,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
         },
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+          fontSize: 0, // Hide labels
         },
+        tabBarShowLabel: false,
       }}
     >
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Home',
+          title: '',
           tabBarIcon: ({ color, focused }) => (
             focused ? (
-              <View style={styles.activeHomeIcon}>
-                <Ionicons name="home" size={28} color="#FFFFFF" />
+              <View style={styles.activeIcon}>
+                <Ionicons name="home" size={24} color="#FFFFFF" />
               </View>
             ) : (
-              <Ionicons name="home-outline" size={24} color={color} />
+              <Ionicons name="home-outline" size={26} color={color} />
             )
           ),
         }}
@@ -48,27 +52,27 @@ export default function TabLayout() {
       <Tabs.Screen
         name="explorer"
         options={{
-          title: 'Schedule',
+          title: '',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={26} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="insights"
         options={{
-          title: 'Activity',
+          title: '',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'map' : 'map-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'map' : 'map-outline'} size={26} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Profile',
+          title: '',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={26} color={color} />
           ),
         }}
       />
@@ -77,18 +81,18 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
-  activeHomeIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  activeIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 8,
+    marginBottom: 4,
   },
 });
