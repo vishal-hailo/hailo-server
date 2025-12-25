@@ -238,7 +238,7 @@ export default function ProfileScreen() {
               {savingsBreakdown.map((item) => (
                 <View key={item.id} style={styles.savingsItem}>
                   <View style={[styles.savingsIcon, { backgroundColor: item.iconBg }]}>
-                    <Ionicons name={item.icon as any} size={20} color={item.iconColor} />
+                    <Ionicons name={item.icon} size={20} color={item.iconColor} />
                   </View>
                   <View style={styles.savingsInfo}>
                     <Text style={styles.savingsTitle}>{item.title}</Text>
