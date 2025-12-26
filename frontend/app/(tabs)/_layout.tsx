@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router';
-import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 
 const Colors = {
   primary: '#3B82F6',
@@ -49,18 +48,30 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarIcon: ({ color, focused }) => (
-            focused ? (
-              <View style={styles.activeIcon}>
-                <Ionicons name="calendar" size={26} color="#FFFFFF" />
-              </View>
-            ) : (
-              <Ionicons name="calendar-outline" size={26} color={color} />
-            )
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={26} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="ride-tracking"
+        options={{
+          title: '',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'map' : 'map-outline'} size={26} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: '',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={26} color={color} />
           ),
         }}
       />
       
-      {/* Hide other tabs */}
+      {/* Hide unused tabs */}
       <Tabs.Screen
         name="insights"
         options={{
@@ -68,13 +79,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="home-redesign"
         options={{
           href: null,
         }}
       />
       <Tabs.Screen
-        name="home-redesign"
+        name="home-old"
+        options={{
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="home-old-backup"
         options={{
           href: null,
         }}
