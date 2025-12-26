@@ -286,7 +286,7 @@ export default function ProfileScreen() {
             <View style={styles.totalSavedCard}>
               <Text style={styles.totalSavedLabel}>Total Saved this month</Text>
               <View style={styles.totalSavedRow}>
-                <Text style={styles.totalSavedAmount}>₹850</Text>
+                <Text style={styles.totalSavedAmount}>₹{stats.totalSaved}</Text>
                 <View style={styles.totalSavedBadge}>
                   <Ionicons name="trending-up" size={14} color="#10B981" />
                   <Text style={styles.totalSavedPercentage}>+23%</Text>
