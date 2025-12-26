@@ -180,6 +180,13 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Loading State */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading your insights...</Text>
+          </View>
+        ) : (
+          <>
         {/* Content based on active tab */}
         {activeTab === 'overview' ? (
           <View style={styles.content}>
