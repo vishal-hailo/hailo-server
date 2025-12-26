@@ -320,6 +320,8 @@ export default function ProfileScreen() {
             </View>
           </View>
         )}
+        </>
+        )}
 
         {/* Menu Items */}
         <View style={styles.menuSection}>
