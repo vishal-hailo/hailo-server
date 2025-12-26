@@ -1,13 +1,11 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
 import { generateToken, verifyAuth } from '../middleware/auth.js';
+import User from '../models/User.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const router = express.Router();
-const prisma = new PrismaClient();
-
 const MOCK_OTP = process.env.OTP_MOCK_CODE || '1234';
 
 // POST /api/v1/auth/request-otp
@@ -46,31 +44,30 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(401).json({ error: 'Invalid OTP' });
     }
     
-    // Find or create user
-    let user = await prisma.user.findUnique({ where: { phone } });
+    // Find or create user in MongoDB
+    let user = await User.findOne({ phone });
     
     if (!user) {
-      user = await prisma.user.create({
-        data: {
-          phone,
-          name: name || null
-        }
+      user = await User.create({
+        phone,
+        name: name || null,
       });
     } else if (name && !user.name) {
-      user = await prisma.user.update({
-        where: { id: user.id },
-        data: { name }
-      });
+      user.name = name;
+      await user.save();
     }
     
-    const token = generateToken(user.id, user.phone);
+    const token = generateToken(user._id, user.phone);
     
     res.json({
       token,
       user: {
-        id: user.id,
+        id: user._id,
         phone: user.phone,
-        name: user.name
+        name: user.name,
+        totalRides: user.totalRides,
+        totalSaved: user.totalSaved,
+        rating: user.rating,
       }
     });
   } catch (error) {
@@ -79,30 +76,56 @@ router.post('/verify-otp', async (req, res) => {
   }
 });
 
-// GET /api/v1/me
-router.get('/', verifyAuth, async (req, res) => {
+// GET /api/v1/me - Get current user profile
+router.get('/me', verifyAuth, async (req, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.userId },
-      include: {
-        locations: true
-      }
-    });
+    const user = await User.findById(req.userId);
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
     
     res.json({
-      id: user.id,
+      id: user._id,
       phone: user.phone,
       name: user.name,
-      locations: user.locations,
-      createdAt: user.createdAt
+      email: user.email,
+      rating: user.rating,
+      totalRides: user.totalRides,
+      totalDistance: user.totalDistance,
+      totalSaved: user.totalSaved,
+      timeSaved: user.timeSaved,
     });
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ error: 'Failed to get user' });
+  }
+});
+
+// POST /api/v1/me/update - Update user profile
+router.post('/me/update', verifyAuth, async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    
+    const user = await User.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (name) user.name = name;
+    if (email) user.email = email;
+    
+    await user.save();
+    
+    res.json({
+      id: user._id,
+      phone: user.phone,
+      name: user.name,
+      email: user.email,
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ error: 'Failed to update user' });
   }
 });
 
