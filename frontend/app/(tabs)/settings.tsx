@@ -122,56 +122,6 @@ export default function ProfileScreen() {
     );
   };
 
-  // Mock data - will be replaced with API calls later
-  const stats = {
-    totalRides: 24,
-    distance: 186,
-    timeSaved: 4.5,
-    avgRating: 4.9,
-    percentageChange: {
-      rides: 8,
-      distance: 12,
-      time: 15,
-      rating: 0,
-    }
-  };
-
-  const savingsBreakdown = [
-    {
-      id: 1,
-      icon: 'flash',
-      iconColor: '#F97316',
-      iconBg: '#FED7AA',
-      title: 'Surge Timing',
-      subtitle: 'Avoided 8 peak surge periods',
-      amount: 580,
-    },
-    {
-      id: 2,
-      icon: 'cloudy',
-      iconColor: '#3B82F6',
-      iconBg: '#DBEAFE',
-      title: 'Weather Predictions',
-      subtitle: 'Pre-booked before 3 rain events',
-      amount: 120,
-    },
-    {
-      id: 3,
-      icon: 'stats-chart',
-      iconColor: '#8B5CF6',
-      iconBg: '#EDE9FE',
-      title: 'Traffic Optimization',
-      subtitle: 'Optimal route timing 12 times',
-      amount: 150,
-    },
-  ];
-
-  const topRoutes = [
-    { id: 1, from: 'Home', to: 'Office', rides: 12, saved: 180 },
-    { id: 2, from: 'Office', to: 'Home', rides: 10, saved: 150 },
-    { id: 3, from: 'Home', to: 'Phoenix Mall', rides: 4, saved: 80 },
-  ];
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
