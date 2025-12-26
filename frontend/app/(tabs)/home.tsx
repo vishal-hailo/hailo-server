@@ -449,12 +449,12 @@ export default function HomeScreen() {
           <Ionicons name="chevron-forward" size={20} color={Colors.text.inverse} />
         </TouchableOpacity>
 
-        {/* Pricing Factors */}
+        {/* Pricing Factors - Show only informational for now */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
             <View style={styles.sectionHeader}>
               <Ionicons name="stats-chart" size={20} color={Colors.primary.main} />
-              <Text style={styles.sectionTitle}>Pricing Factors</Text>
+              <Text style={styles.sectionTitle}>Pricing Insights</Text>
             </View>
             <View style={styles.liveIndicator}>
               <View style={styles.liveDot} />
@@ -462,48 +462,13 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <View style={styles.factorCard}>
-            <RoundIcon
-              icon={<Ionicons name="cloud-outline" size={24} color={Colors.secondary.teal} />}
-              backgroundColor="#D1FAE5"
-              size={48}
-            />
-            <View style={styles.factorInfo}>
-              <Text style={styles.factorTitle}>Weather Impact</Text>
-              <Text style={styles.factorSubtext}>Light rain expected</Text>
-            </View>
-            <View style={styles.factorBadge}>
-              <Text style={styles.factorPercent}>+8%</Text>
-            </View>
-          </View>
-
-          <View style={styles.factorCard}>
-            <RoundIcon
-              icon={<Ionicons name="car-outline" size={24} color={Colors.secondary.orange} />}
-              backgroundColor="#FEE2E2"
-              size={48}
-            />
-            <View style={styles.factorInfo}>
-              <Text style={styles.factorTitle}>Traffic Density</Text>
-              <Text style={styles.factorSubtext}>Moderate traffic</Text>
-            </View>
-            <View style={styles.factorBadge}>
-              <Text style={styles.factorPercent}>+12%</Text>
-            </View>
-          </View>
-
-          <View style={styles.factorCard}>
-            <RoundIcon
-              icon={<Ionicons name="time-outline" size={24} color={Colors.error} />}
-              backgroundColor="#FEE2E2"
-              size={48}
-            />
-            <View style={styles.factorInfo}>
-              <Text style={styles.factorTitle}>Peak Hours</Text>
-              <Text style={styles.factorSubtext}>Evening rush (5-7 PM)</Text>
-            </View>
-            <View style={styles.factorBadge}>
-              <Text style={styles.factorPercent}>+15%</Text>
+          <View style={styles.infoCard}>
+            <Ionicons name="information-circle" size={24} color={Colors.primary.main} />
+            <View style={styles.infoText}>
+              <Text style={styles.infoTitle}>Real-Time Pricing</Text>
+              <Text style={styles.infoSubtext}>
+                We analyze weather, traffic, and demand to help you find the best time to book
+              </Text>
             </View>
           </View>
         </View>
