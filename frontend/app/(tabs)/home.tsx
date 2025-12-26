@@ -312,41 +312,44 @@ export default function HomeScreen() {
         </View>
 
         {/* HailO Brain - Smart Recommendation */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="bulb" size={20} color={Colors.primary.main} />
-            <Text style={styles.sectionTitle}>HailO Brain</Text>
-            <Text style={styles.sectionSubtitle}>Smart recommendation</Text>
-          </View>
-
-          <View style={styles.brainCard}>
-            <View style={styles.brainCardHeader}>
-              <View style={styles.brainLocationInfo}>
-                <Ionicons name="home" size={24} color={Colors.primary.main} />
-                <View style={styles.brainTextInfo}>
-                  <Text style={styles.brainTitle}>Home</Text>
-                  <Text style={styles.brainSubtext}>Your usual 6:30 PM ride</Text>
-                </View>
-              </View>
-              <View style={styles.brainPriceInfo}>
-                <Text style={styles.brainSavings}>Save 18%</Text>
-                <Text style={styles.brainPrice}>~₹120</Text>
-              </View>
+        {recommendations.length > 0 ? (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="bulb" size={20} color={Colors.primary.main} />
+              <Text style={styles.sectionTitle}>HailO Brain</Text>
+              <Text style={styles.sectionSubtitle}>Smart recommendation</Text>
             </View>
 
-            <TouchableOpacity style={styles.bookNowButton}>
-              <Text style={styles.bookNowText}>Book Now</Text>
-              <Ionicons name="arrow-forward" size={18} color={Colors.text.inverse} />
-            </TouchableOpacity>
+            <View style={styles.brainCard}>
+              <View style={styles.brainCardHeader}>
+                <View style={styles.brainLocationInfo}>
+                  <Ionicons name={recommendations[0].icon || "bulb"} size={24} color={Colors.primary.main} />
+                  <View style={styles.brainTextInfo}>
+                    <Text style={styles.brainTitle}>{recommendations[0].title}</Text>
+                    <Text style={styles.brainSubtext}>{recommendations[0].description}</Text>
+                  </View>
+                </View>
+              </View>
 
-            <View style={styles.brainAdvice}>
-              <Ionicons name="information-circle" size={16} color={Colors.text.secondary} />
-              <Text style={styles.brainAdviceText}>
-                Wait 15 mins for no surge. Uber Go is cheapest via Uber at ₹98
+              <View style={styles.brainAdvice}>
+                <Ionicons name="information-circle" size={16} color={Colors.text.secondary} />
+                <Text style={styles.brainAdviceText}>
+                  {recommendations[0].description}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <View style={styles.emptyRecommendation}>
+              <Ionicons name="bulb-outline" size={48} color={Colors.neutral[200]} />
+              <Text style={styles.emptyTitle}>No Recommendations Yet</Text>
+              <Text style={styles.emptySubtitle}>
+                Complete a few rides to get personalized suggestions
               </Text>
             </View>
           </View>
-        </View>
+        )}
 
         {/* Surge Radar */}
         <View style={styles.section}>
