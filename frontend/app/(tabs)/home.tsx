@@ -381,49 +381,67 @@ export default function HomeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Book</Text>
 
-          <TouchableOpacity style={styles.quickBookCard}>
-            <RoundIcon
-              icon={<Ionicons name="home" size={24} color={Colors.primary.main} />}
-              backgroundColor={Colors.primary.subtle}
-              size={48}
-            />
-            <View style={styles.quickBookInfo}>
-              <Text style={styles.quickBookTitle}>Home</Text>
-              <Text style={styles.quickBookSubtext}>HSR Layout</Text>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <Text style={styles.loadingText}>Loading locations...</Text>
             </View>
-            <View style={styles.quickBookRight}>
-              <Text style={styles.quickBookPrice}>~₹120</Text>
-              <Text style={styles.quickBookTime}>18 min</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickBookCard}>
-            <RoundIcon
-              icon={<Ionicons name="briefcase" size={24} color={Colors.primary.main} />}
-              backgroundColor={Colors.primary.subtle}
-              size={48}
-            />
-            <View style={styles.quickBookInfo}>
-              <Text style={styles.quickBookTitle}>Office</Text>
-              <Text style={styles.quickBookSubtext}>Koramangala</Text>
-            </View>
-            <View style={styles.quickBookRight}>
-              <Text style={styles.quickBookPrice}>~₹95</Text>
-              <Text style={styles.quickBookTime}>12 min</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
-          </TouchableOpacity>
+          ) : locations.length > 0 ? (
+            locations.slice(0, 2).map((location) => (
+              <TouchableOpacity key={location._id} style={styles.quickBookCard}>
+                <RoundIcon
+                  icon={
+                    <Ionicons 
+                      name={location.type === 'HOME' ? 'home' : location.type === 'OFFICE' ? 'briefcase' : 'location'} 
+                      size={24} 
+                      color={Colors.primary.main} 
+                    />
+                  }
+                  backgroundColor={Colors.primary.subtle}
+                  size={48}
+                />
+                <View style={styles.quickBookInfo}>
+                  <Text style={styles.quickBookTitle}>{location.label}</Text>
+                  <Text style={styles.quickBookSubtext}>{location.address}</Text>
+                </View>
+                <View style={styles.quickBookRight}>
+                  <Text style={styles.quickBookPrice}>~₹120</Text>
+                  <Text style={styles.quickBookTime}>18 min</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+              </TouchableOpacity>
+            ))
+          ) : (
+            <TouchableOpacity 
+              style={styles.quickBookCard}
+              onPress={() => router.push('/location-setup')}
+            >
+              <RoundIcon
+                icon={<Ionicons name="add" size={24} color={Colors.primary.main} />}
+                backgroundColor={Colors.primary.subtle}
+                size={48}
+              />
+              <View style={styles.quickBookInfo}>
+                <Text style={styles.quickBookTitle}>Add Location</Text>
+                <Text style={styles.quickBookSubtext}>Save your frequently visited places</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* This Month - Savings */}
-        <TouchableOpacity style={styles.savingsCard}>
+        <TouchableOpacity 
+          style={styles.savingsCard}
+          onPress={() => router.push('/(tabs)/settings')}
+        >
           <View style={styles.savingsIcon}>
             <Ionicons name="trending-down" size={24} color={Colors.text.inverse} />
           </View>
           <View style={styles.savingsInfo}>
             <Text style={styles.savingsTitle}>This Month</Text>
-            <Text style={styles.savingsSubtext}>You saved ₹850 with HailO</Text>
+            <Text style={styles.savingsSubtext}>
+              You saved ₹{stats.totalSaved} with HailO
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color={Colors.text.inverse} />
         </TouchableOpacity>
