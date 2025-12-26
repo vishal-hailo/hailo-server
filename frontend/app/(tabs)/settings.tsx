@@ -88,7 +88,11 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadUserData();
+  }, [loadUserData]);
 
   const handleLogout = async () => {
     Alert.alert(
