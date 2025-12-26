@@ -58,56 +58,41 @@ const RouteIndicator = ({ from, to }: { from: string; to: string }) => {
 export default function ScheduleScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'upcoming' | 'recurring'>('recurring');
+  const [upcomingRides, setUpcomingRides] = useState([]);
+  const [recurringRides, setRecurringRides] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const upcomingRides = [
-    {
-      id: 1,
-      time: 'Tomorrow, 9:00 AM',
-      from: 'HSR Layout',
-      to: 'Koramangala',
-      price: '$8.50',
-      status: 'confirmed',
-    },
-    {
-      id: 2,
-      time: 'Tomorrow, 6:30 PM',
-      from: 'Koramangala',
-      to: 'HSR Layout',
-      price: '$9.20',
-      status: 'pending',
-    },
-  ];
+  useEffect(() => {
+    loadRides();
+  }, []);
 
-  const recurringRides = [
-    {
-      id: 1,
-      title: 'Office Commute',
-      from: 'HSR Layout',
-      to: 'Koramangala',
-      time: '9:00 AM',
-      days: [true, true, true, true, true, false, false],
-      price: '$8.50',
-      recurring: true,
-    },
-    {
-      id: 2,
-      title: 'Home Return',
-      from: 'Koramangala',
-      to: 'HSR Layout',
-      time: '6:30 PM',
-      days: [true, true, true, true, true, false, false],
-      price: '$9.20',
-      recurring: true,
-    },
-    {
-      id: 3,
-      title: 'Airport Pickup',
-      from: 'HSR Layout',
-      to: 'Kempegowda Airport',
-      time: '5:00 AM',
-      days: [false, false, false, false, false, false, false],
-    },
-  ];
+  const loadRides = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('authToken');
+      const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+      
+      // Fetch upcoming rides
+      const upcomingResponse = await axios.get(`${API_URL}/api/v1/rides/upcoming`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      // Fetch all rides to filter recurring ones
+      const allRidesResponse = await axios.get(`${API_URL}/api/v1/rides?type=RECURRING`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      setUpcomingRides(upcomingResponse.data);
+      setRecurringRides(allRidesResponse.data);
+    } catch (error) {
+      console.error('Load rides error:', error);
+      // Set mock data on error for demo purposes
+      setUpcomingRides([]);
+      setRecurringRides([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
