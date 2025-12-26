@@ -95,6 +95,9 @@ export default function HomeScreen() {
   const [user, setUser] = useState<any>(null);
   const [selectedRideType, setSelectedRideType] = useState<RideType>('car');
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
   const [surgeData, setSurgeData] = useState([
     { time: 'Now', multiplier: 1.3, type: 'surge' },
     { time: '15m', multiplier: 1.2, type: 'surge' },
@@ -102,6 +105,7 @@ export default function HomeScreen() {
     { time: '45m', multiplier: 0, type: 'none' },
     { time: '1h', multiplier: 1.1, type: 'surge' },
   ]);
+  const [stats, setStats] = useState({ totalSaved: 0 });
 
   useEffect(() => {
     loadUserData();
@@ -109,12 +113,47 @@ export default function HomeScreen() {
 
   const loadUserData = async () => {
     try {
-      const userStr = await AsyncStorage.getItem('user');
-      if (userStr) {
-        setUser(JSON.parse(userStr));
+      setLoading(true);
+      const token = await AsyncStorage.getItem('authToken');
+      
+      if (!token) {
+        console.log('No auth token found');
+        setLoading(false);
+        return;
       }
+
+      // Fetch user profile
+      const userResponse = await axios.get(`${API_URL}/api/v1/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUser(userResponse.data);
+
+      // Fetch user locations
+      const locationsResponse = await axios.get(`${API_URL}/api/v1/locations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setLocations(locationsResponse.data);
+
+      // Fetch recommendations
+      const recommendationsResponse = await axios.get(`${API_URL}/api/v1/insights/recommendations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setRecommendations(recommendationsResponse.data);
+
+      // Fetch insights for savings
+      const insightsResponse = await axios.get(`${API_URL}/api/v1/insights/summary`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setStats({ totalSaved: insightsResponse.data.stats.totalSaved || 0 });
+
     } catch (error) {
-      console.error('Load user error:', error);
+      console.error('Load user data error:', error);
+      // Set default empty values on error
+      setUser(null);
+      setLocations([]);
+      setRecommendations([]);
+    } finally {
+      setLoading(false);
     }
   };
 
