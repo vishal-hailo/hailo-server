@@ -758,4 +758,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text.inverse,
   },
+
+  // Loading State
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+  },
 });
