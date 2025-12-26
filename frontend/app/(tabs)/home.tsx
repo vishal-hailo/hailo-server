@@ -882,4 +882,59 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  // Empty States
+  emptyRecommendation: {
+    backgroundColor: Colors.background.card,
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginTop: 8,
+  },
+
+  // Info Card
+  infoCard: {
+    flexDirection: 'row',
+    backgroundColor: Colors.primary.subtle,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  infoText: {
+    flex: 1,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 4,
+  },
+  infoSubtext: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    lineHeight: 20,
+  },
 });
