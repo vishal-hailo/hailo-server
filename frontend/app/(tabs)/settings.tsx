@@ -19,7 +19,7 @@ const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const [user, setUser] = useState<{name?: string; phone?: string} | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'insights'>('overview');
 
   const [stats, setStats] = useState({
