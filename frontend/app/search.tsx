@@ -105,74 +105,82 @@ export default function SearchScreen() {
         </View>
 
         {/* Recent Searches */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent</Text>
-          {recentLocations.map((location, index) => (
-            <TouchableOpacity key={index} style={styles.locationCard}>
-              <RoundIcon
-                icon={<Ionicons name="time-outline" size={24} color={Colors.text.secondary} />}
-                backgroundColor={Colors.neutral[100]}
-                size={48}
-              />
-              <View style={styles.locationInfo}>
-                <Text style={styles.locationName}>{location.name}</Text>
-                <Text style={styles.locationSubtext}>{location.subtext}</Text>
-                <View style={styles.locationMeta}>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="location-outline" size={14} color={Colors.text.secondary} />
-                    <Text style={styles.metaText}>{location.distance}</Text>
-                  </View>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="time-outline" size={14} color={Colors.text.secondary} />
-                    <Text style={styles.metaText}>{location.time}</Text>
-                  </View>
-                  <Text style={styles.priceText}>{location.price}</Text>
-                  {location.surge > 0 && (
-                    <PillBadge
-                      label={`⚡ ${location.surge}x`}
-                      variant={location.surge > 1.3 ? 'surge-high' : 'surge-medium'}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary.main} />
+            <Text style={styles.loadingText}>Loading...</Text>
+          </View>
+        ) : (
+          <>
+            {/* Saved Locations */}
+            {savedLocations.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Saved Locations</Text>
+                {savedLocations.map((location) => (
+                  <TouchableOpacity key={location._id} style={styles.locationCard}>
+                    <RoundIcon
+                      icon={
+                        <Ionicons 
+                          name={location.type === 'HOME' ? 'home' : location.type === 'OFFICE' ? 'briefcase' : 'location'} 
+                          size={24} 
+                          color={Colors.primary.main} 
+                        />
+                      }
+                      backgroundColor={Colors.primary.subtle}
+                      size={48}
                     />
-                  )}
-                </View>
+                    <View style={styles.locationInfo}>
+                      <Text style={styles.locationName}>{location.label}</Text>
+                      <Text style={styles.locationSubtext}>{location.address}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+                  </TouchableOpacity>
+                ))}
               </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+            )}
 
-        {/* Popular Destinations */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Popular Destinations</Text>
-          {popularDestinations.map((location, index) => (
-            <TouchableOpacity key={index} style={styles.locationCard}>
-              <RoundIcon
-                icon={<Ionicons name="trending-up" size={24} color={Colors.primary.main} />}
-                backgroundColor={Colors.primary.subtle}
-                size={48}
-              />
-              <View style={styles.locationInfo}>
-                <Text style={styles.locationName}>{location.name}</Text>
-                <Text style={styles.locationSubtext}>{location.subtext}</Text>
-                <View style={styles.locationMeta}>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="location-outline" size={14} color={Colors.text.secondary} />
-                    <Text style={styles.metaText}>{location.distance}</Text>
-                  </View>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="time-outline" size={14} color={Colors.text.secondary} />
-                    <Text style={styles.metaText}>{location.time}</Text>
-                  </View>
-                  <Text style={styles.priceText}>{location.price}</Text>
-                  {location.surge > 0 && (
-                    <PillBadge
-                      label={`⚡ ${location.surge}x`}
-                      variant={location.surge > 1.2 ? 'surge-medium' : 'surge-low'}
+            {/* Recent Rides */}
+            {recentLocations.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Recent</Text>
+                {recentLocations.slice(0, 3).map((ride) => (
+                  <TouchableOpacity key={ride._id} style={styles.locationCard}>
+                    <RoundIcon
+                      icon={<Ionicons name="time-outline" size={24} color={Colors.text.secondary} />}
+                      backgroundColor={Colors.neutral[100]}
+                      size={48}
                     />
-                  )}
-                </View>
+                    <View style={styles.locationInfo}>
+                      <Text style={styles.locationName}>{ride.to.label || ride.to.address}</Text>
+                      <Text style={styles.locationSubtext}>From {ride.from.label || ride.from.address}</Text>
+                      {ride.price && (
+                        <Text style={styles.priceText}>₹{ride.price}</Text>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+                  </TouchableOpacity>
+                ))}
               </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+            )}
+
+            {/* Empty State */}
+            {savedLocations.length === 0 && recentLocations.length === 0 && (
+              <View style={styles.emptyState}>
+                <Ionicons name="search-outline" size={64} color={Colors.neutral[200]} />
+                <Text style={styles.emptyTitle}>No locations yet</Text>
+                <Text style={styles.emptySubtext}>
+                  Start by adding your favorite locations or booking your first ride
+                </Text>
+                <TouchableOpacity 
+                  style={styles.emptyButton}
+                  onPress={() => router.push('/location-setup')}
+                >
+                  <Text style={styles.emptyButtonText}>Add Location</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
