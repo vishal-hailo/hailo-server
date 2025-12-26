@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 const Colors = {
   primary: '#3B82F6',
@@ -17,8 +18,8 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.secondary,
         tabBarStyle: {
-          height: 65,
-          paddingBottom: 8,
+          height: 80,
+          paddingBottom: 12,
           paddingTop: 8,
           borderTopWidth: 0,
           backgroundColor: Colors.background,
@@ -29,7 +30,7 @@ export default function TabLayout() {
           shadowRadius: 4,
         },
         tabBarLabelStyle: {
-          fontSize: 0, // Hide labels
+          fontSize: 0,
         },
         tabBarShowLabel: false,
       }}
@@ -39,7 +40,7 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={26} color={color} />
           ),
         }}
       />
@@ -48,32 +49,34 @@ export default function TabLayout() {
         options={{
           title: '',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />
+            focused ? (
+              <View style={styles.activeIcon}>
+                <Ionicons name="calendar" size={26} color="#FFFFFF" />
+              </View>
+            ) : (
+              <Ionicons name="calendar-outline" size={26} color={color} />
+            )
           ),
         }}
       />
+      
+      {/* Hide other tabs */}
       <Tabs.Screen
         name="insights"
         options={{
-          title: '',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'map' : 'map-outline'} size={24} color={color} />
-          ),
+          href: null,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: '',
-          tabBarIcon: ({ color, focused }) => (
-            focused ? (
-              <View style={styles.activeIcon}>
-                <Ionicons name="person" size={24} color="#FFFFFF" />
-              </View>
-            ) : (
-              <Ionicons name="person-outline" size={24} color={color} />
-            )
-          ),
+          href: null,
+        }}
+      />
+      <Tabs.Screen
+        name="home-redesign"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
@@ -82,9 +85,9 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   activeIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -93,6 +96,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 8,
-    marginBottom: 4,
+    marginBottom: 8,
   },
 });

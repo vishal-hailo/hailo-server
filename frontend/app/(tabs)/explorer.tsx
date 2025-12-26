@@ -5,22 +5,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-
-const Colors = {
-  primary: { main: '#3B82F6', light: '#60A5FA', dark: '#2563EB', subtle: '#DBEAFE' },
-  secondary: { teal: '#10B981', orange: '#F97316', purple: '#8B5CF6' },
-  neutral: { 100: '#F3F4F6', 200: '#E5E7EB', 300: '#D1D5DB', 400: '#9CA3AF' },
-  text: { primary: '#111827', secondary: '#6B7280', tertiary: '#9CA3AF', inverse: '#FFFFFF' },
-  background: { card: '#FFFFFF', secondary: '#F9FAFB' },
-};
+import Colors from '../../constants/Colors';
 
 // Day Selector Component
-const DaySelector = ({ days, disabled = false }) => {
+const DaySelector = ({ days }: { days: boolean[] }) => {
   const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
   
   return (
@@ -31,7 +23,6 @@ const DaySelector = ({ days, disabled = false }) => {
           style={[
             styles.dayButton,
             days[index] ? styles.dayButtonActive : styles.dayButtonInactive,
-            disabled && styles.dayButtonDisabled,
           ]}
         >
           <Text
@@ -49,15 +40,15 @@ const DaySelector = ({ days, disabled = false }) => {
 };
 
 // Route Indicator Component
-const RouteIndicator = ({ from, to, fromColor = Colors.primary.main, toColor = Colors.secondary.teal }) => {
+const RouteIndicator = ({ from, to }: { from: string; to: string }) => {
   return (
     <View style={styles.routeContainer}>
       <View style={styles.routeItem}>
-        <View style={[styles.routeDot, { backgroundColor: fromColor }]} />
+        <View style={[styles.routeDot, { backgroundColor: Colors.primary.main }]} />
         <Text style={styles.routeText}>{from}</Text>
       </View>
       <View style={styles.routeItem}>
-        <View style={[styles.routeDot, { backgroundColor: toColor }]} />
+        <View style={[styles.routeDot, { backgroundColor: Colors.secondary.teal }]} />
         <Text style={styles.routeText}>{to}</Text>
       </View>
     </View>
@@ -66,27 +57,23 @@ const RouteIndicator = ({ from, to, fromColor = Colors.primary.main, toColor = C
 
 export default function ScheduleScreen() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'upcoming' | 'recurring'>('upcoming');
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'recurring'>('recurring');
 
   const upcomingRides = [
     {
       id: 1,
-      title: 'Office Meeting',
-      from: 'Home',
-      to: 'Office',
-      date: 'Today',
-      time: '9:00 AM',
-      price: '₹95',
+      time: 'Tomorrow, 9:00 AM',
+      from: 'HSR Layout',
+      to: 'Koramangala',
+      price: '$8.50',
       status: 'confirmed',
     },
     {
       id: 2,
-      title: 'Airport Drop',
-      from: 'Home',
-      to: 'BLR Airport',
-      date: 'Tomorrow',
-      time: '6:30 AM',
-      price: '₹450',
+      time: 'Tomorrow, 6:30 PM',
+      from: 'Koramangala',
+      to: 'HSR Layout',
+      price: '$9.20',
       status: 'pending',
     },
   ];
@@ -95,22 +82,30 @@ export default function ScheduleScreen() {
     {
       id: 1,
       title: 'Office Commute',
-      from: 'Home',
-      to: 'Office',
+      from: 'HSR Layout',
+      to: 'Koramangala',
       time: '9:00 AM',
-      days: [true, true, true, true, true, false, false], // M-F
-      price: '~₹95',
-      reminder: true,
+      days: [true, true, true, true, true, false, false],
+      price: '$8.50',
+      recurring: true,
     },
     {
       id: 2,
       title: 'Home Return',
-      from: 'Office',
-      to: 'Home',
+      from: 'Koramangala',
+      to: 'HSR Layout',
       time: '6:30 PM',
-      days: [true, true, true, true, true, false, false], // M-F
-      price: '~₹120',
-      reminder: true,
+      days: [true, true, true, true, true, false, false],
+      price: '$9.20',
+      recurring: true,
+    },
+    {
+      id: 3,
+      title: 'Airport Pickup',
+      from: 'HSR Layout',
+      to: 'Kempegowda Airport',
+      time: '5:00 AM',
+      days: [false, false, false, false, false, false, false],
     },
   ];
 
@@ -150,107 +145,106 @@ export default function ScheduleScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {activeTab === 'upcoming' ? (
           <View style={styles.content}>
-            {upcomingRides.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="calendar-outline" size={80} color={Colors.neutral[400]} />
-                <Text style={styles.emptyTitle}>No Upcoming Rides</Text>
-                <Text style={styles.emptyText}>Schedule your rides in advance</Text>
-                <TouchableOpacity style={styles.emptyButton}>
-                  <Text style={styles.emptyButtonText}>Schedule Ride</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              upcomingRides.map((ride) => (
-                <View key={ride.id} style={styles.upcomingCard}>
-                  <View style={styles.upcomingHeader}>
-                    <View style={styles.upcomingInfo}>
-                      <Text style={styles.upcomingTitle}>{ride.title}</Text>
-                      <Text style={styles.upcomingDateTime}>
-                        {ride.date} • {ride.time}
-                      </Text>
-                    </View>
-                    <View style={[
-                      styles.statusBadge,
-                      { backgroundColor: ride.status === 'confirmed' ? Colors.secondary.teal : Colors.secondary.orange }
-                    ]}>
-                      <Text style={styles.statusText}>
-                        {ride.status === 'confirmed' ? 'Confirmed' : 'Pending'}
-                      </Text>
-                    </View>
+            {upcomingRides.map((ride) => (
+              <View key={ride.id} style={styles.upcomingCard}>
+                <View style={styles.upcomingHeader}>
+                  <View style={styles.upcomingTimeContainer}>
+                    <Ionicons name="time-outline" size={18} color={Colors.text.secondary} />
+                    <Text style={styles.upcomingTime}>{ride.time}</Text>
                   </View>
-
-                  <RouteIndicator from={ride.from} to={ride.to} />
-
-                  <View style={styles.upcomingFooter}>
-                    <Text style={styles.upcomingPrice}>{ride.price}</Text>
-                    <View style={styles.upcomingActions}>
-                      <TouchableOpacity style={styles.actionButton}>
-                        <Ionicons name="create-outline" size={20} color={Colors.primary.main} />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.actionButton}>
-                        <Ionicons name="trash-outline" size={20} color={Colors.text.secondary} />
-                      </TouchableOpacity>
-                    </View>
+                  <View
+                    style={[
+                      styles.statusBadge,
+                      {
+                        backgroundColor:
+                          ride.status === 'confirmed' ? '#D1FAE5' : '#FED7AA',
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusText,
+                        {
+                          color: ride.status === 'confirmed' ? '#10B981' : '#F97316',
+                        },
+                      ]}
+                    >
+                      {ride.status}
+                    </Text>
                   </View>
                 </View>
-              ))
-            )}
+
+                <RouteIndicator from={ride.from} to={ride.to} />
+
+                <View style={styles.upcomingFooter}>
+                  <Text style={styles.upcomingPrice}>{ride.price}</Text>
+                  <TouchableOpacity style={styles.modifyButton}>
+                    <Text style={styles.modifyText}>Modify</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+            
+            {/* Schedule a Ride CTA */}
+            <TouchableOpacity style={styles.ctaCard}>
+              <View style={styles.ctaIcon}>
+                <Ionicons name="calendar" size={24} color={Colors.primary.main} />
+              </View>
+              <View style={styles.ctaInfo}>
+                <Text style={styles.ctaTitle}>Schedule a ride</Text>
+                <Text style={styles.ctaSubtitle}>Book in advance & save on surge</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
+            </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.content}>
-            {recurringRides.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="repeat-outline" size={80} color={Colors.neutral[400]} />
-                <Text style={styles.emptyTitle}>No Recurring Rides</Text>
-                <Text style={styles.emptyText}>Set up your daily commute patterns</Text>
-                <TouchableOpacity style={styles.emptyButton}>
-                  <Text style={styles.emptyButtonText}>Add Recurring Ride</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              recurringRides.map((ride) => (
-                <View key={ride.id} style={styles.recurringCard}>
-                  <View style={styles.recurringHeader}>
+            {recurringRides.map((ride) => (
+              <View key={ride.id} style={styles.recurringCard}>
+                <View style={styles.recurringHeader}>
+                  <View style={styles.recurringIcon}>
+                    <Ionicons
+                      name={ride.id === 1 ? 'briefcase' : ride.id === 2 ? 'home' : 'airplane'}
+                      size={20}
+                      color={Colors.primary.main}
+                    />
+                  </View>
+                  <View style={styles.recurringInfo}>
                     <Text style={styles.recurringTitle}>{ride.title}</Text>
-                    <TouchableOpacity>
-                      <Ionicons name="ellipsis-vertical" size={20} color={Colors.text.secondary} />
-                    </TouchableOpacity>
-                  </View>
-
-                  <RouteIndicator from={ride.from} to={ride.to} />
-
-                  <View style={styles.recurringDetails}>
-                    <View style={styles.recurringTime}>
-                      <Ionicons name="time-outline" size={18} color={Colors.text.secondary} />
-                      <Text style={styles.recurringTimeText}>{ride.time}</Text>
+                    <View style={styles.recurringTimeRow}>
+                      <Ionicons name="time-outline" size={14} color={Colors.text.secondary} />
+                      <Text style={styles.recurringTime}>{ride.time}</Text>
+                      {ride.recurring && (
+                        <View style={styles.recurringBadge}>
+                          <Ionicons name="repeat" size={12} color={Colors.primary.main} />
+                          <Text style={styles.recurringBadgeText}>Recurring</Text>
+                        </View>
+                      )}
                     </View>
-                    <Text style={styles.recurringPrice}>{ride.price}</Text>
                   </View>
+                  <TouchableOpacity>
+                    <Ionicons name="ellipsis-vertical" size={20} color={Colors.text.secondary} />
+                  </TouchableOpacity>
+                </View>
 
-                  <DaySelector days={ride.days} disabled />
+                <RouteIndicator from={ride.from} to={ride.to} />
 
-                  <View style={styles.recurringFooter}>
-                    <View style={styles.reminderContainer}>
-                      <Ionicons name="notifications" size={18} color={Colors.secondary.teal} />
-                      <Text style={styles.reminderText}>Remind 15 min before</Text>
-                    </View>
-                    <TouchableOpacity>
-                      <Text style={styles.editText}>Edit</Text>
-                    </TouchableOpacity>
+                <DaySelector days={ride.days} />
+
+                <View style={styles.recurringFooter}>
+                  <Text style={styles.recurringPrice}>{ride.price}</Text>
+                  <View style={styles.reminderContainer}>
+                    <Ionicons name="notifications-outline" size={16} color={Colors.text.secondary} />
+                    <Text style={styles.reminderText}>Remind</Text>
                   </View>
                 </View>
-              ))
-            )}
+              </View>
+            ))}
           </View>
         )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
-
-      {/* Floating Add Button */}
-      <TouchableOpacity style={styles.floatingButton}>
-        <Ionicons name="add" size={28} color={Colors.text.inverse} />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -289,20 +283,20 @@ const styles = StyleSheet.create({
   tab: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 24,
     backgroundColor: Colors.background.card,
     alignItems: 'center',
   },
   tabActive: {
-    backgroundColor: Colors.primary.main,
+    backgroundColor: Colors.background.card,
   },
   tabText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: Colors.text.secondary,
   },
   tabTextActive: {
-    color: Colors.text.inverse,
+    color: Colors.text.primary,
   },
   scrollView: {
     flex: 1,
@@ -310,7 +304,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
   },
-  
+
   // Upcoming Rides
   upcomingCard: {
     backgroundColor: Colors.background.card,
@@ -322,20 +316,16 @@ const styles = StyleSheet.create({
   upcomingHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
-  upcomingInfo: {
-    flex: 1,
+  upcomingTimeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  upcomingTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text.primary,
-  },
-  upcomingDateTime: {
+  upcomingTime: {
     fontSize: 14,
     color: Colors.text.secondary,
-    marginTop: 4,
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -345,25 +335,26 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
     fontWeight: '600',
-    color: Colors.text.inverse,
   },
   upcomingFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 4,
   },
   upcomingPrice: {
     fontSize: 20,
     fontWeight: '700',
     color: Colors.text.primary,
   },
-  upcomingActions: {
-    flexDirection: 'row',
-    gap: 12,
+  modifyButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
   },
-  actionButton: {
-    padding: 8,
+  modifyText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primary.main,
   },
 
   // Recurring Rides
@@ -376,32 +367,45 @@ const styles = StyleSheet.create({
   },
   recurringHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  recurringIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primary.subtle,
+    justifyContent: 'center',
     alignItems: 'center',
+  },
+  recurringInfo: {
+    flex: 1,
   },
   recurringTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: Colors.text.primary,
+    marginBottom: 4,
   },
-  recurringDetails: {
+  recurringTimeRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 4,
   },
   recurringTime: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  recurringTimeText: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.text.secondary,
   },
-  recurringPrice: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text.primary,
+  recurringBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 8,
+  },
+  recurringBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Colors.primary.main,
   },
   recurringFooter: {
     flexDirection: 'row',
@@ -409,19 +413,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
   },
+  recurringPrice: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
   reminderContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.background.secondary,
   },
   reminderText: {
     fontSize: 12,
     color: Colors.text.secondary,
-  },
-  editText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.primary.main,
+    fontWeight: '500',
   },
 
   // Route Indicator
@@ -434,9 +443,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   routeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   routeText: {
     fontSize: 14,
@@ -461,11 +470,8 @@ const styles = StyleSheet.create({
   dayButtonInactive: {
     backgroundColor: Colors.neutral[200],
   },
-  dayButtonDisabled: {
-    opacity: 0.7,
-  },
   dayButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
   },
   dayButtonTextActive: {
@@ -475,51 +481,35 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
 
-  // Empty State
-  emptyState: {
+  // CTA Card
+  ctaCard: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 80,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    marginTop: 16,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: Colors.text.secondary,
+    backgroundColor: '#EEF2FF',
+    borderRadius: 16,
+    padding: 16,
     marginTop: 8,
-    textAlign: 'center',
   },
-  emptyButton: {
-    backgroundColor: Colors.primary.main,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    marginTop: 24,
-  },
-  emptyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.inverse,
-  },
-
-  // Floating Button
-  floatingButton: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary.main,
+  ctaIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.background.card,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    marginRight: 12,
+  },
+  ctaInfo: {
+    flex: 1,
+  },
+  ctaTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 2,
+  },
+  ctaSubtitle: {
+    fontSize: 12,
+    color: Colors.text.secondary,
   },
 });
