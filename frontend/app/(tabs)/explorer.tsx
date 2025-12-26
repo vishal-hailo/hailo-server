@@ -131,47 +131,71 @@ export default function ScheduleScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {activeTab === 'upcoming' ? (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary.main} />
+            <Text style={styles.loadingText}>Loading your rides...</Text>
+          </View>
+        ) : activeTab === 'upcoming' ? (
           <View style={styles.content}>
-            {upcomingRides.map((ride) => (
-              <View key={ride.id} style={styles.upcomingCard}>
-                <View style={styles.upcomingHeader}>
-                  <View style={styles.upcomingTimeContainer}>
-                    <Ionicons name="time-outline" size={18} color={Colors.text.secondary} />
-                    <Text style={styles.upcomingTime}>{ride.time}</Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      {
-                        backgroundColor:
-                          ride.status === 'confirmed' ? '#D1FAE5' : '#FED7AA',
-                      },
-                    ]}
-                  >
-                    <Text
+            {upcomingRides.length > 0 ? (
+              upcomingRides.map((ride) => (
+                <View key={ride._id} style={styles.upcomingCard}>
+                  <View style={styles.upcomingHeader}>
+                    <View style={styles.upcomingTimeContainer}>
+                      <Ionicons name="time-outline" size={18} color={Colors.text.secondary} />
+                      <Text style={styles.upcomingTime}>
+                        {new Date(ride.scheduledTime).toLocaleString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                    </View>
+                    <View
                       style={[
-                        styles.statusText,
+                        styles.statusBadge,
                         {
-                          color: ride.status === 'confirmed' ? '#10B981' : '#F97316',
+                          backgroundColor:
+                            ride.status === 'CONFIRMED' ? '#D1FAE5' : '#FED7AA',
                         },
                       ]}
                     >
-                      {ride.status}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.statusText,
+                          {
+                            color: ride.status === 'CONFIRMED' ? '#10B981' : '#F97316',
+                          },
+                        ]}
+                      >
+                        {ride.status.toLowerCase()}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <RouteIndicator 
+                    from={ride.from.label || ride.from.address} 
+                    to={ride.to.label || ride.to.address} 
+                  />
+
+                  <View style={styles.upcomingFooter}>
+                    <Text style={styles.upcomingPrice}>₹{ride.estimatedPrice || ride.price || 0}</Text>
+                    <TouchableOpacity style={styles.modifyButton}>
+                      <Text style={styles.modifyText}>Modify</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-
-                <RouteIndicator from={ride.from} to={ride.to} />
-
-                <View style={styles.upcomingFooter}>
-                  <Text style={styles.upcomingPrice}>{ride.price}</Text>
-                  <TouchableOpacity style={styles.modifyButton}>
-                    <Text style={styles.modifyText}>Modify</Text>
-                  </TouchableOpacity>
-                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="calendar-outline" size={64} color={Colors.neutral[300]} />
+                <Text style={styles.emptyStateTitle}>No upcoming rides</Text>
+                <Text style={styles.emptyStateSubtitle}>Schedule a ride to see it here</Text>
               </View>
-            ))}
+            )}
             
             {/* Schedule a Ride CTA */}
             <TouchableOpacity style={styles.ctaCard}>
@@ -187,47 +211,65 @@ export default function ScheduleScreen() {
           </View>
         ) : (
           <View style={styles.content}>
-            {recurringRides.map((ride) => (
-              <View key={ride.id} style={styles.recurringCard}>
-                <View style={styles.recurringHeader}>
-                  <View style={styles.recurringIcon}>
-                    <Ionicons
-                      name={ride.id === 1 ? 'briefcase' : ride.id === 2 ? 'home' : 'airplane'}
-                      size={20}
-                      color={Colors.primary.main}
-                    />
+            {recurringRides.length > 0 ? (
+              recurringRides.map((ride) => (
+                <View key={ride._id} style={styles.recurringCard}>
+                  <View style={styles.recurringHeader}>
+                    <View style={styles.recurringIcon}>
+                      <Ionicons
+                        name="car-sport"
+                        size={20}
+                        color={Colors.primary.main}
+                      />
+                    </View>
+                    <View style={styles.recurringInfo}>
+                      <Text style={styles.recurringTitle}>
+                        {ride.from.label || 'From'} → {ride.to.label || 'To'}
+                      </Text>
+                      <View style={styles.recurringTimeRow}>
+                        <Ionicons name="time-outline" size={14} color={Colors.text.secondary} />
+                        <Text style={styles.recurringTime}>
+                          {new Date(ride.scheduledTime).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
+                        </Text>
+                        {ride.recurringPattern?.enabled && (
+                          <View style={styles.recurringBadge}>
+                            <Ionicons name="repeat" size={12} color={Colors.primary.main} />
+                            <Text style={styles.recurringBadgeText}>Recurring</Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                    <TouchableOpacity>
+                      <Ionicons name="ellipsis-vertical" size={20} color={Colors.text.secondary} />
+                    </TouchableOpacity>
                   </View>
-                  <View style={styles.recurringInfo}>
-                    <Text style={styles.recurringTitle}>{ride.title}</Text>
-                    <View style={styles.recurringTimeRow}>
-                      <Ionicons name="time-outline" size={14} color={Colors.text.secondary} />
-                      <Text style={styles.recurringTime}>{ride.time}</Text>
-                      {ride.recurring && (
-                        <View style={styles.recurringBadge}>
-                          <Ionicons name="repeat" size={12} color={Colors.primary.main} />
-                          <Text style={styles.recurringBadgeText}>Recurring</Text>
-                        </View>
-                      )}
+
+                  <RouteIndicator 
+                    from={ride.from.label || ride.from.address} 
+                    to={ride.to.label || ride.to.address} 
+                  />
+
+                  <DaySelector days={ride.recurringPattern?.days || [false, false, false, false, false, false, false]} />
+
+                  <View style={styles.recurringFooter}>
+                    <Text style={styles.recurringPrice}>₹{ride.estimatedPrice || ride.price || 0}</Text>
+                    <View style={styles.reminderContainer}>
+                      <Ionicons name="notifications-outline" size={16} color={Colors.text.secondary} />
+                      <Text style={styles.reminderText}>Remind</Text>
                     </View>
                   </View>
-                  <TouchableOpacity>
-                    <Ionicons name="ellipsis-vertical" size={20} color={Colors.text.secondary} />
-                  </TouchableOpacity>
                 </View>
-
-                <RouteIndicator from={ride.from} to={ride.to} />
-
-                <DaySelector days={ride.days} />
-
-                <View style={styles.recurringFooter}>
-                  <Text style={styles.recurringPrice}>{ride.price}</Text>
-                  <View style={styles.reminderContainer}>
-                    <Ionicons name="notifications-outline" size={16} color={Colors.text.secondary} />
-                    <Text style={styles.reminderText}>Remind</Text>
-                  </View>
-                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="repeat-outline" size={64} color={Colors.neutral[300]} />
+                <Text style={styles.emptyStateTitle}>No recurring rides</Text>
+                <Text style={styles.emptyStateSubtitle}>Set up your daily commute pattern</Text>
               </View>
-            ))}
+            )}
           </View>
         )}
 
