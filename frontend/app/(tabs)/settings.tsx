@@ -39,10 +39,6 @@ export default function ProfileScreen() {
   const [topRoutes, setTopRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadUserData();
-  }, []);
-
   const loadUserData = useCallback(async () => {
     try {
       setLoading(true);
