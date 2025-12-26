@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,63 +6,57 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import Colors from '../constants/Colors';
 import { PillBadge, RoundIcon } from '../components/shared/DesignSystemComponents';
+
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 export default function SearchScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [recentLocations, setRecentLocations] = useState([]);
+  const [savedLocations, setSavedLocations] = useState([]);
 
-  const recentLocations = [
-    { 
-      name: 'Indiranagar', 
-      subtext: 'Bangalore', 
-      distance: '8.2 km', 
-      time: '18 min', 
-      price: '₹95',
-      surge: 1.3 
-    },
-    { 
-      name: 'Phoenix Mall', 
-      subtext: 'Whitefield', 
-      distance: '12.5 km', 
-      time: '25 min', 
-      price: '₹185',
-      surge: 0 
-    },
-  ];
+  useEffect(() => {
+    loadLocations();
+  }, []);
 
-  const popularDestinations = [
-    { 
-      name: 'BLR Airport', 
-      subtext: 'Kempegowda Airport', 
-      distance: '35 km', 
-      time: '45 min', 
-      price: '₹450',
-      surge: 1.2 
-    },
-    { 
-      name: 'Koramangala', 
-      subtext: '5th Block', 
-      distance: '6.8 km', 
-      time: '15 min', 
-      price: '₹75',
-      surge: 0 
-    },
-    { 
-      name: 'MG Road', 
-      subtext: 'Metro Station', 
-      distance: '10.2 km', 
-      time: '22 min', 
-      price: '₹120',
-      surge: 1.1 
-    },
-  ];
+  const loadLocations = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('authToken');
+      
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      // Fetch user saved locations
+      const locationsResponse = await axios.get(`${API_URL}/api/v1/locations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSavedLocations(locationsResponse.data);
+
+      // Fetch recent rides to show as recent locations
+      const ridesResponse = await axios.get(`${API_URL}/api/v1/rides/history?limit=5`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setRecentLocations(ridesResponse.data);
+
+    } catch (error) {
+      console.error('Load locations error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
