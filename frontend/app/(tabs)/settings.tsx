@@ -43,7 +43,7 @@ export default function ProfileScreen() {
     loadUserData();
   }, []);
 
-  const loadUserData = async () => {
+  const loadUserData = useCallback(async () => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem('authToken');
