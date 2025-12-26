@@ -88,7 +88,7 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setUser, setStats, setSavingsBreakdown, setTopRoutes, setLoading]);
 
   useEffect(() => {
     loadUserData();
