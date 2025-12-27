@@ -466,6 +466,51 @@ const styles = StyleSheet.create({
   map: {
     flex: 1,
   },
+  webMapPlaceholder: {
+    flex: 1,
+    backgroundColor: Colors.primary.subtle,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapPlaceholderContent: {
+    alignItems: 'center',
+    padding: 32,
+  },
+  mapPlaceholderTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginTop: 16,
+  },
+  mapPlaceholderText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  routePreview: {
+    marginTop: 24,
+    backgroundColor: Colors.background.card,
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+    minWidth: 200,
+  },
+  routePreviewItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  routePreviewDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  routePreviewText: {
+    fontSize: 14,
+    color: Colors.text.primary,
+    flex: 1,
+  },
   carIcon: {
     position: 'absolute',
     top: '50%',
