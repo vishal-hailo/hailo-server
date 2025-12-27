@@ -171,40 +171,71 @@ export default function RideTrackingScreen() {
 
       {/* Map View */}
       <View style={styles.mapContainer}>
-        <MapView
-          provider={PROVIDER_GOOGLE}
-          style={styles.map}
-          region={region}
-          showsUserLocation
-          showsMyLocationButton
-          showsTraffic
-        >
-          {/* Pickup Marker */}
-          {activeRide.from.latitude && activeRide.from.longitude && (
-            <Marker
-              coordinate={{
-                latitude: activeRide.from.latitude,
-                longitude: activeRide.from.longitude,
-              }}
-              title="Pickup"
-              description={activeRide.from.address}
-              pinColor={Colors.primary.main}
-            />
-          )}
-          
-          {/* Drop-off Marker */}
-          {activeRide.to.latitude && activeRide.to.longitude && (
-            <Marker
-              coordinate={{
-                latitude: activeRide.to.latitude,
-                longitude: activeRide.to.longitude,
-              }}
-              title="Drop-off"
-              description={activeRide.to.address}
-              pinColor={Colors.secondary.teal}
-            />
-          )}
-        </MapView>
+        {Platform.OS === 'web' ? (
+          // Web fallback - show a nice map placeholder
+          <View style={styles.webMapPlaceholder}>
+            <View style={styles.mapPlaceholderContent}>
+              <Ionicons name="map" size={64} color={Colors.primary.main} />
+              <Text style={styles.mapPlaceholderTitle}>Map View</Text>
+              <Text style={styles.mapPlaceholderText}>
+                Open this on mobile to see the live map
+              </Text>
+              <View style={styles.routePreview}>
+                <View style={styles.routePreviewItem}>
+                  <View style={[styles.routePreviewDot, { backgroundColor: Colors.primary.main }]} />
+                  <Text style={styles.routePreviewText}>
+                    {activeRide.from.label || activeRide.from.address}
+                  </Text>
+                </View>
+                <Ionicons name="arrow-down" size={20} color={Colors.text.secondary} />
+                <View style={styles.routePreviewItem}>
+                  <View style={[styles.routePreviewDot, { backgroundColor: Colors.secondary.teal }]} />
+                  <Text style={styles.routePreviewText}>
+                    {activeRide.to.label || activeRide.to.address}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        ) : (
+          // Native platforms - show real map
+          MapView && (
+            <MapView
+              provider={PROVIDER_GOOGLE}
+              style={styles.map}
+              region={region}
+              showsUserLocation
+              showsMyLocationButton
+              showsTraffic
+            >
+              {/* Pickup Marker */}
+              {activeRide.from.latitude && activeRide.from.longitude && Marker && (
+                <Marker
+                  coordinate={{
+                    latitude: activeRide.from.latitude,
+                    longitude: activeRide.from.longitude,
+                  }}
+                  title="Pickup"
+                  description={activeRide.from.address}
+                  pinColor={Colors.primary.main}
+                />
+              )}
+              
+              {/* Drop-off Marker */}
+              {activeRide.to.latitude && activeRide.to.longitude && Marker && (
+                <Marker
+                  coordinate={{
+                    latitude: activeRide.to.latitude,
+                    longitude: activeRide.to.longitude,
+                  }}
+                  title="Drop-off"
+                  description={activeRide.to.address}
+                  pinColor={Colors.secondary.teal}
+                />
+              )}
+            </MapView>
+          )
+        )}
         
         {/* Floating Car Icon */}
         <View style={styles.carIcon}>
