@@ -6,14 +6,26 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import Colors from '../../constants/Colors';
+
+// Only import MapView on native platforms
+let MapView: any = null;
+let Marker: any = null;
+let PROVIDER_GOOGLE: any = null;
+
+if (Platform.OS !== 'web') {
+  const MapModule = require('react-native-maps');
+  MapView = MapModule.default;
+  Marker = MapModule.Marker;
+  PROVIDER_GOOGLE = MapModule.PROVIDER_GOOGLE;
+}
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
