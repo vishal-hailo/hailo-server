@@ -5,36 +5,112 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
-  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import Colors from '../../constants/Colors';
 
 const { width } = Dimensions.get('window');
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 export default function RideTrackingScreen() {
   const router = useRouter();
-  const [rideStatus, setRideStatus] = useState('arriving'); // arriving, onboard, completed
+  const [loading, setLoading] = useState(true);
+  const [activeRide, setActiveRide] = useState<any>(null);
+  const [region, setRegion] = useState({
+    latitude: 12.9716,
+    longitude: 77.5946,
+    latitudeDelta: 0.0922,
+    longitudeDelta: 0.0421,
+  });
 
-  // Mock ride data
-  const rideData = {
-    driver: {
-      name: 'Rajesh Kumar',
-      rating: 4.8,
-      vehicle: 'White Swift Dzire',
-      plateNumber: 'KA 05 MN 1234',
-      phone: '+91 98765 43210',
-    },
-    pickup: 'Indiranagar, Bangalore',
-    dropoff: 'Phoenix Mall, Whitefield',
-    eta: 3,
-    distance: '0.8 km away',
-    rideDuration: '25 min',
-    price: '₹185',
-    rideType: 'Uber',
+  useEffect(() => {
+    loadActiveRide();
+  }, []);
+
+  const loadActiveRide = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('authToken');
+      
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      // Fetch upcoming rides to find active one
+      const response = await axios.get(`${API_URL}/api/v1/rides/upcoming`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Find ride with status IN_PROGRESS or CONFIRMED
+      const ride = response.data.find(
+        (r: any) => r.status === 'IN_PROGRESS' || r.status === 'CONFIRMED'
+      );
+      
+      if (ride) {
+        setActiveRide(ride);
+        
+        // Update map region if coordinates available
+        if (ride.from.latitude && ride.from.longitude) {
+          setRegion({
+            latitude: ride.from.latitude,
+            longitude: ride.from.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Load active ride error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary.main} />
+          <Text style={styles.loadingText}>Loading ride details...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!activeRide) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
+            <Ionicons name="close" size={24} color={Colors.text.primary} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Ride Tracking</Text>
+          <View style={{ width: 40 }} />
+        </View>
+
+        <View style={styles.emptyState}>
+          <Ionicons name="car-outline" size={80} color={Colors.neutral[200]} />
+          <Text style={styles.emptyTitle}>No Active Ride</Text>
+          <Text style={styles.emptySubtitle}>
+            You don't have any rides in progress. Schedule a ride to track it here.
+          </Text>
+          <TouchableOpacity 
+            style={styles.emptyButton}
+            onPress={() => router.push('/(tabs)/explorer')}
+          >
+            <Text style={styles.emptyButtonText}>Schedule a Ride</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -45,8 +121,12 @@ export default function RideTrackingScreen() {
         </TouchableOpacity>
         
         <View style={styles.statusContainer}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>Driver arriving</Text>
+          <View style={[styles.statusDot, { 
+            backgroundColor: activeRide.status === 'IN_PROGRESS' ? '#10B981' : '#F59E0B' 
+          }]} />
+          <Text style={styles.statusText}>
+            {activeRide.status === 'IN_PROGRESS' ? 'On the way' : 'Waiting for driver'}
+          </Text>
         </View>
         
         <TouchableOpacity style={styles.headerButton}>
@@ -60,7 +140,9 @@ export default function RideTrackingScreen() {
           <View style={[styles.routeDot, { backgroundColor: Colors.primary.main }]} />
           <View style={styles.routeInfo}>
             <Text style={styles.routeLabel}>Pickup</Text>
-            <Text style={styles.routeText}>{rideData.pickup}</Text>
+            <Text style={styles.routeText}>
+              {activeRide.from.label || activeRide.from.address}
+            </Text>
           </View>
         </View>
         
@@ -68,17 +150,49 @@ export default function RideTrackingScreen() {
           <View style={[styles.routeDot, { backgroundColor: Colors.secondary.teal }]} />
           <View style={styles.routeInfo}>
             <Text style={styles.routeLabel}>Drop-off</Text>
-            <Text style={styles.routeText}>{rideData.dropoff}</Text>
+            <Text style={styles.routeText}>
+              {activeRide.to.label || activeRide.to.address}
+            </Text>
           </View>
         </View>
       </View>
 
-      {/* Map Placeholder */}
+      {/* Map View */}
       <View style={styles.mapContainer}>
-        <View style={styles.mapPlaceholder}>
-          <Ionicons name="map" size={80} color={Colors.neutral[300]} />
-          <Text style={styles.mapPlaceholderText}>Map View</Text>
-        </View>
+        <MapView
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          region={region}
+          showsUserLocation
+          showsMyLocationButton
+          showsTraffic
+        >
+          {/* Pickup Marker */}
+          {activeRide.from.latitude && activeRide.from.longitude && (
+            <Marker
+              coordinate={{
+                latitude: activeRide.from.latitude,
+                longitude: activeRide.from.longitude,
+              }}
+              title="Pickup"
+              description={activeRide.from.address}
+              pinColor={Colors.primary.main}
+            />
+          )}
+          
+          {/* Drop-off Marker */}
+          {activeRide.to.latitude && activeRide.to.longitude && (
+            <Marker
+              coordinate={{
+                latitude: activeRide.to.latitude,
+                longitude: activeRide.to.longitude,
+              }}
+              title="Drop-off"
+              description={activeRide.to.address}
+              pinColor={Colors.secondary.teal}
+            />
+          )}
+        </MapView>
         
         {/* Floating Car Icon */}
         <View style={styles.carIcon}>
@@ -86,64 +200,74 @@ export default function RideTrackingScreen() {
         </View>
       </View>
 
-      {/* ETA Info */}
-      <View style={styles.etaContainer}>
-        <View style={styles.etaLeft}>
-          <Text style={styles.etaLabel}>Arriving in</Text>
-          <Text style={styles.etaValue}>{rideData.eta} min</Text>
+      {/* Ride Info Card */}
+      <View style={styles.rideInfoCard}>
+        <View style={styles.rideTimeRow}>
+          <View style={styles.rideTimeItem}>
+            <Text style={styles.rideTimeLabel}>Scheduled Time</Text>
+            <Text style={styles.rideTimeValue}>
+              {new Date(activeRide.scheduledTime).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+            </Text>
+          </View>
+          
+          {activeRide.duration && (
+            <View style={styles.rideTimeItem}>
+              <Text style={styles.rideTimeLabel}>Duration</Text>
+              <Text style={styles.rideTimeValue}>{activeRide.duration} min</Text>
+            </View>
+          )}
+          
+          {activeRide.estimatedPrice && (
+            <View style={styles.rideTimeItem}>
+              <Text style={styles.rideTimeLabel}>Estimated Price</Text>
+              <Text style={styles.rideTimeValue}>₹{activeRide.estimatedPrice}</Text>
+            </View>
+          )}
         </View>
-        <View style={styles.etaRight}>
-          <Text style={styles.distanceLabel}>Distance</Text>
-          <Text style={styles.distanceValue}>{rideData.distance}</Text>
-        </View>
-      </View>
 
-      {/* Driver Info Card */}
-      <View style={styles.driverCard}>
-        <View style={styles.driverHeader}>
-          <View style={styles.driverAvatar}>
-            <Text style={styles.driverAvatarText}>{rideData.driver.name.charAt(0)}</Text>
+        {/* Driver Info (if available) */}
+        {activeRide.driver ? (
+          <View style={styles.driverCard}>
+            <View style={styles.driverAvatar}>
+              <Text style={styles.driverAvatarText}>
+                {activeRide.driver.name?.charAt(0) || 'D'}
+              </Text>
+            </View>
+            <View style={styles.driverInfo}>
+              <Text style={styles.driverName}>{activeRide.driver.name}</Text>
+              <Text style={styles.driverVehicle}>{activeRide.driver.vehicle}</Text>
+              <Text style={styles.driverPlate}>{activeRide.driver.plateNumber}</Text>
+            </View>
+            {activeRide.driver.rating && (
+              <View style={styles.driverRating}>
+                <Ionicons name="star" size={16} color="#10B981" />
+                <Text style={styles.driverRatingText}>{activeRide.driver.rating}</Text>
+              </View>
+            )}
           </View>
-          <View style={styles.driverInfo}>
-            <Text style={styles.driverName}>{rideData.driver.name}</Text>
-            <Text style={styles.driverVehicle}>{rideData.driver.vehicle}</Text>
-            <Text style={styles.driverPlate}>{rideData.driver.plateNumber}</Text>
+        ) : (
+          <View style={styles.waitingCard}>
+            <Ionicons name="time-outline" size={24} color={Colors.primary.main} />
+            <Text style={styles.waitingText}>Waiting for driver assignment...</Text>
           </View>
-          <View style={styles.driverRating}>
-            <Ionicons name="star" size={16} color="#10B981" />
-            <Text style={styles.driverRatingText}>{rideData.driver.rating}</Text>
-          </View>
-        </View>
-        
-        <View style={styles.driverActions}>
-          <TouchableOpacity style={styles.actionButton}>
-            <View style={styles.actionIconContainer}>
+        )}
+
+        {/* Action Buttons */}
+        {activeRide.driver && (
+          <View style={styles.actionButtons}>
+            <TouchableOpacity style={styles.actionButton}>
               <Ionicons name="call" size={24} color={Colors.text.inverse} />
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <View style={[styles.actionIconContainer, { backgroundColor: Colors.neutral[200] }]}>
+              <Text style={styles.actionButtonText}>Call</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionButton, styles.actionButtonSecondary]}>
               <Ionicons name="chatbubble" size={24} color={Colors.text.primary} />
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Ride Details */}
-      <View style={styles.rideDetails}>
-        <View style={styles.rideDetailItem}>
-          <View style={styles.rideTypeContainer}>
-            <View style={styles.rideTypeBadge}>
-              <Text style={styles.rideTypeText}>{rideData.rideType}</Text>
-            </View>
-            <Text style={styles.rideTypeLabel}>UberGo</Text>
+              <Text style={[styles.actionButtonText, styles.actionButtonTextSecondary]}>Message</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles.rideDuration}>
-            <Ionicons name="time-outline" size={18} color={Colors.text.secondary} />
-            <Text style={styles.rideDurationText}>{rideData.rideDuration} ride</Text>
-          </View>
-          <Text style={styles.ridePrice}>{rideData.price}</Text>
-        </View>
+        )}
       </View>
 
       {/* Safety Center */}
@@ -160,6 +284,54 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background.secondary,
   },
+  
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: Colors.text.secondary,
+  },
+  
+  // Empty State
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: Colors.text.secondary,
+    marginTop: 12,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  emptyButton: {
+    backgroundColor: Colors.primary.main,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 24,
+    marginTop: 32,
+  },
+  emptyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.inverse,
+  },
+
+  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -180,6 +352,11 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -189,7 +366,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#10B981',
   },
   statusText: {
     fontSize: 16,
@@ -239,24 +415,20 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     marginTop: 16,
+    marginHorizontal: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
     position: 'relative',
   },
-  mapPlaceholder: {
+  map: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#E5E7EB',
-  },
-  mapPlaceholderText: {
-    marginTop: 12,
-    fontSize: 16,
-    color: Colors.text.secondary,
   },
   carIcon: {
     position: 'absolute',
-    bottom: '40%',
+    top: '50%',
     left: '50%',
     marginLeft: -30,
+    marginTop: -30,
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -270,54 +442,43 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
 
-  // ETA
-  etaContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+  // Ride Info
+  rideInfoCard: {
     backgroundColor: Colors.background.card,
+    marginHorizontal: 20,
     marginTop: 16,
+    borderRadius: 16,
+    padding: 16,
   },
-  etaLeft: {
-    flex: 1,
+  rideTimeRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.background.secondary,
   },
-  etaLabel: {
-    fontSize: 14,
+  rideTimeItem: {
+    alignItems: 'center',
+  },
+  rideTimeLabel: {
+    fontSize: 12,
     color: Colors.text.secondary,
     marginBottom: 4,
   },
-  etaValue: {
-    fontSize: 32,
+  rideTimeValue: {
+    fontSize: 16,
     fontWeight: '700',
-    color: Colors.text.primary,
-  },
-  etaRight: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  distanceLabel: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-    marginBottom: 4,
-  },
-  distanceValue: {
-    fontSize: 18,
-    fontWeight: '600',
     color: Colors.text.primary,
   },
 
   // Driver Card
   driverCard: {
-    backgroundColor: '#EEF2FF',
-    marginHorizontal: 20,
-    marginTop: 12,
-    borderRadius: 16,
-    padding: 16,
-  },
-  driverHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginTop: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.background.secondary,
   },
   driverAvatar: {
     width: 56,
@@ -356,7 +517,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: Colors.background.card,
+    backgroundColor: Colors.background.secondary,
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -366,65 +527,47 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text.primary,
   },
-  driverActions: {
+
+  // Waiting Card
+  waitingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: Colors.primary.subtle,
+    borderRadius: 12,
+  },
+  waitingText: {
+    fontSize: 14,
+    color: Colors.text.primary,
+  },
+
+  // Action Buttons
+  actionButtons: {
     flexDirection: 'row',
     gap: 12,
+    marginTop: 16,
   },
   actionButton: {
     flex: 1,
-  },
-  actionIconContainer: {
-    backgroundColor: Colors.primary.main,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-
-  // Ride Details
-  rideDetails: {
-    backgroundColor: Colors.background.card,
-    marginHorizontal: 20,
-    marginTop: 12,
-    borderRadius: 16,
-    padding: 16,
-  },
-  rideDetailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  rideTypeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
+    backgroundColor: Colors.primary.main,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
-  rideTypeBadge: {
-    backgroundColor: Colors.text.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+  actionButtonSecondary: {
+    backgroundColor: Colors.background.secondary,
   },
-  rideTypeText: {
-    fontSize: 12,
-    fontWeight: '700',
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: Colors.text.inverse,
   },
-  rideTypeLabel: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-  },
-  rideDuration: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  rideDurationText: {
-    fontSize: 14,
-    color: Colors.text.secondary,
-  },
-  ridePrice: {
-    fontSize: 20,
-    fontWeight: '700',
+  actionButtonTextSecondary: {
     color: Colors.text.primary,
   },
 
