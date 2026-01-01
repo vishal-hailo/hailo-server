@@ -8,48 +8,67 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Path } from 'react-native-svg';
 import axios from 'axios';
-// API_URL from environment variable
+
+const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+
+// HailO Logo Component
+const HailOLogo = () => (
+  <View style={styles.logoContainer}>
+    <View style={styles.logoIconWrapper}>
+      <Svg width="32" height="32" viewBox="0 0 32 32">
+        <Path 
+          d="M8 8 L24 16 L8 24 L12 16 Z" 
+          fill="#FFFFFF"
+          stroke="#FFFFFF"
+          strokeWidth="1"
+          strokeLinejoin="round"
+        />
+      </Svg>
+    </View>
+  </View>
+);
 
 export default function PhoneScreen() {
   const router = useRouter();
-  const [phone, setPhone] = useState('+91');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleContinue = async () => {
-    if (phone.length < 13) {
+    const fullPhone = '+91' + phone.replace(/\D/g, '');
+    
+    if (phone.replace(/\D/g, '').length < 10) {
       Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number');
       return;
     }
 
-    console.log('Attempting to send OTP to:', phone);
+    console.log('Attempting to send OTP to:', fullPhone);
     console.log('API URL:', API_URL);
     setLoading(true);
     
     try {
       console.log('Making request to:', `${API_URL}/api/v1/auth/request-otp`);
-      const response = await axios.post(`${API_URL}/api/v1/auth/request-otp`, { phone }, {
-        timeout: 10000, // 10 second timeout
+      const response = await axios.post(`${API_URL}/api/v1/auth/request-otp`, { phone: fullPhone }, {
+        timeout: 10000,
       });
       console.log('OTP Response:', response.data);
       
       if (response.data.success) {
         console.log('OTP sent successfully, navigating to OTP screen');
-        router.push({ pathname: '/auth/otp', params: { phone } });
+        router.push({ pathname: '/auth/otp', params: { phone: fullPhone } });
       } else {
         Alert.alert('Error', 'Failed to send OTP. Please try again.');
       }
     } catch (error: any) {
       console.error('Request OTP error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
       
       let errorMessage = 'Failed to send OTP. ';
       if (error.code === 'ECONNABORTED') {
@@ -68,103 +87,285 @@ export default function PhoneScreen() {
     }
   };
 
+  const handleEmailSignIn = () => {
+    // Navigate to email sign in (can be implemented later)
+    Alert.alert('Coming Soon', 'Email sign in will be available soon.');
+  };
+
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <View style={styles.content}>
-          <Text style={styles.title}>Welcome to HailO</Text>
-          <Text style={styles.subtitle}>Mumbai's Commute Genius</Text>
+    <View style={styles.container}>
+      {/* Background */}
+      <LinearGradient
+        colors={['#EEF2FF', '#F5F3FF', '#FDF4FF']}
+        style={styles.gradientBackground}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={[styles.blob, styles.blobTop]} />
+      <View style={[styles.blob, styles.blobBottom]} />
 
-          <View style={styles.form}>
-            <Text style={styles.label}>Phone Number</Text>
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="+91XXXXXXXXXX"
-              keyboardType="phone-pad"
-              maxLength={13}
-              autoFocus
-            />
-            <Text style={styles.hint}>We'll send you an OTP for verification</Text>
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          <View style={styles.content}>
+            {/* Logo Section */}
+            <HailOLogo />
+            <Text style={styles.appName}>HailO</Text>
+            <Text style={styles.tagline}>Your Daily Commute, Optimized.</Text>
+
+            {/* Welcome Section */}
+            <View style={styles.welcomeSection}>
+              <Text style={styles.welcomeTitle}>Welcome back</Text>
+              <Text style={styles.welcomeSubtitle}>Sign in to your account to continue</Text>
+            </View>
+
+            {/* Phone Input */}
+            <View style={styles.inputContainer}>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="call-outline" size={22} color="#9CA3AF" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="Phone Number"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                />
+              </View>
+            </View>
+
+            {/* Continue Button */}
+            <TouchableOpacity
+              style={[styles.primaryButton, loading && styles.buttonDisabled]}
+              onPress={handleContinue}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.primaryButtonText}>
+                {loading ? 'Sending...' : 'Continue with Phone'}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Email Sign In Button */}
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={handleEmailSignIn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="mail-outline" size={20} color="#1F2937" style={styles.buttonIconLeft} />
+              <Text style={styles.secondaryButtonText}>Sign in with Email</Text>
+            </TouchableOpacity>
+
+            {/* Terms */}
+            <View style={styles.termsContainer}>
+              <Text style={styles.termsText}>
+                By continuing, you agree to our{' '}
+              </Text>
+              <TouchableOpacity>
+                <Text style={styles.termsLink}>Terms of Service</Text>
+              </TouchableOpacity>
+              <Text style={styles.termsText}> and </Text>
+              <TouchableOpacity>
+                <Text style={styles.termsLink}>Privacy Policy</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={handleContinue}
-            disabled={loading}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? 'Sending...' : 'Continue'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F8FAFC',
+  },
+  gradientBackground: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  blob: {
+    position: 'absolute',
+    borderRadius: 999,
+    opacity: 0.4,
+  },
+  blobTop: {
+    width: width * 0.8,
+    height: width * 0.8,
+    backgroundColor: '#E0E7FF',
+    top: -width * 0.3,
+    left: -width * 0.2,
+  },
+  blobBottom: {
+    width: width * 0.6,
+    height: width * 0.6,
+    backgroundColor: '#D1FAE5',
+    bottom: 0,
+    right: -width * 0.2,
+  },
+  safeArea: {
+    flex: 1,
   },
   keyboardView: {
     flex: 1,
   },
   content: {
     flex: 1,
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 40,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  logoIconWrapper: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: '#3B5BDB',
     justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#3B5BDB',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+  appName: {
+    fontSize: 36,
+    fontWeight: '800',
     color: '#1F2937',
-    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+    marginBottom: 4,
   },
-  subtitle: {
-    fontSize: 18,
+  tagline: {
+    fontSize: 16,
     color: '#6B7280',
-    marginBottom: 48,
-  },
-  form: {
+    textAlign: 'center',
     marginBottom: 32,
   },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
+  welcomeSection: {
+    marginBottom: 24,
+  },
+  welcomeTitle: {
+    fontSize: 28,
+    fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 8,
+    marginBottom: 4,
+    letterSpacing: -0.3,
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    height: 56,
+  },
+  inputIcon: {
+    marginRight: 12,
   },
   input: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 18,
-    borderWidth: 2,
-    borderColor: '#E5E7EB',
+    flex: 1,
+    fontSize: 16,
+    color: '#1F2937',
+    height: '100%',
   },
-  hint: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 8,
-  },
-  button: {
-    backgroundColor: '#FF6B35',
-    borderRadius: 12,
-    padding: 16,
+  primaryButton: {
+    backgroundColor: '#3B5BDB',
+    borderRadius: 50,
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#3B5BDB',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
-  buttonText: {
+  primaryButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#E5E7EB',
+  },
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    letterSpacing: 1,
+  },
+  secondaryButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 50,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+  },
+  buttonIconLeft: {
+    marginRight: 10,
+  },
+  secondaryButtonText: {
+    color: '#1F2937',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  termsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    marginTop: 32,
+    paddingHorizontal: 20,
+  },
+  termsText: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 22,
+  },
+  termsLink: {
+    fontSize: 14,
+    color: '#3B5BDB',
+    fontWeight: '600',
+    lineHeight: 22,
   },
 });
