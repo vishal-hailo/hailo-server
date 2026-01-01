@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import axios from 'axios';
+import Colors from '../../constants/Colors';
 
 const { width } = Dimensions.get('window');
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
@@ -27,8 +28,8 @@ const HailOLogo = () => (
       <Svg width="32" height="32" viewBox="0 0 32 32">
         <Path 
           d="M8 8 L24 16 L8 24 L12 16 Z" 
-          fill="#FFFFFF"
-          stroke="#FFFFFF"
+          fill={Colors.text.inverse}
+          stroke={Colors.text.inverse}
           strokeWidth="1"
           strokeLinejoin="round"
         />
@@ -96,7 +97,7 @@ export default function PhoneScreen() {
     <View style={styles.container}>
       {/* Background */}
       <LinearGradient
-        colors={['#EEF2FF', '#F5F3FF', '#FDF4FF']}
+        colors={[Colors.gradient.start, Colors.gradient.middle, Colors.gradient.end]}
         style={styles.gradientBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -124,13 +125,13 @@ export default function PhoneScreen() {
             {/* Phone Input */}
             <View style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
-                <Ionicons name="call-outline" size={22} color="#9CA3AF" style={styles.inputIcon} />
+                <Ionicons name="call-outline" size={22} color={Colors.text.tertiary} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   value={phone}
                   onChangeText={setPhone}
                   placeholder="Phone Number"
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={Colors.text.tertiary}
                   keyboardType="phone-pad"
                   maxLength={10}
                 />
@@ -162,7 +163,7 @@ export default function PhoneScreen() {
               onPress={handleEmailSignIn}
               activeOpacity={0.7}
             >
-              <Ionicons name="mail-outline" size={20} color="#1F2937" style={styles.buttonIconLeft} />
+              <Ionicons name="mail-outline" size={20} color={Colors.text.primary} style={styles.buttonIconLeft} />
               <Text style={styles.secondaryButtonText}>Sign in with Email</Text>
             </TouchableOpacity>
 
@@ -189,7 +190,7 @@ export default function PhoneScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.background.primary,
   },
   gradientBackground: {
     ...StyleSheet.absoluteFillObject,
@@ -202,7 +203,7 @@ const styles = StyleSheet.create({
   blobTop: {
     width: width * 0.8,
     height: width * 0.8,
-    backgroundColor: '#E0E7FF',
+    backgroundColor: Colors.primary.muted,
     top: -width * 0.3,
     left: -width * 0.2,
   },
@@ -232,10 +233,10 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 20,
-    backgroundColor: '#3B5BDB',
+    backgroundColor: Colors.primary.main,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#3B5BDB',
+    shadowColor: Colors.primary.main,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -244,14 +245,14 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 36,
     fontWeight: '800',
-    color: '#1F2937',
+    color: Colors.text.primary,
     textAlign: 'center',
     letterSpacing: -0.5,
     marginBottom: 4,
   },
   tagline: {
     fontSize: 16,
-    color: '#6B7280',
+    color: Colors.text.secondary,
     textAlign: 'center',
     marginBottom: 32,
   },
@@ -261,13 +262,13 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.text.primary,
     marginBottom: 4,
     letterSpacing: -0.3,
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: Colors.text.secondary,
   },
   inputContainer: {
     marginBottom: 16,
@@ -275,10 +276,10 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.background.card,
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border.light,
     paddingHorizontal: 16,
     height: 56,
   },
@@ -288,18 +289,18 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#1F2937',
+    color: Colors.text.primary,
     height: '100%',
   },
   primaryButton: {
-    backgroundColor: '#3B5BDB',
+    backgroundColor: Colors.primary.main,
     borderRadius: 50,
     paddingVertical: 18,
     paddingHorizontal: 32,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#3B5BDB',
+    shadowColor: Colors.primary.main,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -309,7 +310,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
     fontSize: 17,
     fontWeight: '600',
     letterSpacing: 0.3,
@@ -322,17 +323,17 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: Colors.border.light,
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 13,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: Colors.text.tertiary,
     letterSpacing: 1,
   },
   secondaryButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.background.card,
     borderRadius: 50,
     paddingVertical: 16,
     paddingHorizontal: 32,
@@ -340,13 +341,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#E5E7EB',
+    borderColor: Colors.border.light,
   },
   buttonIconLeft: {
     marginRight: 10,
   },
   secondaryButtonText: {
-    color: '#1F2937',
+    color: Colors.text.primary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -359,12 +360,12 @@ const styles = StyleSheet.create({
   },
   termsText: {
     fontSize: 14,
-    color: '#6B7280',
+    color: Colors.text.secondary,
     lineHeight: 22,
   },
   termsLink: {
     fontSize: 14,
-    color: '#3B5BDB',
+    color: Colors.primary.main,
     fontWeight: '600',
     lineHeight: 22,
   },
