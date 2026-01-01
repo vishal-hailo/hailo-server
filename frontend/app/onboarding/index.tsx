@@ -14,18 +14,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Rect, G } from 'react-native-svg';
+import Colors from '../../constants/Colors';
 
 const { width, height } = Dimensions.get('window');
 
 // Custom Icon Components
 const MoneyIcon = () => (
   <View style={styles.iconContainer}>
-    <View style={styles.iconBackground}>
+    <View style={[styles.iconBackground, { backgroundColor: '#FEF3E2' }]}>
       <Svg width="40" height="40" viewBox="0 0 40 40">
-        <Rect x="4" y="10" width="32" height="20" rx="3" stroke="#F97316" strokeWidth="2.5" fill="none" />
-        <Circle cx="20" cy="20" r="6" stroke="#F97316" strokeWidth="2.5" fill="none" />
-        <Circle cx="10" cy="20" r="2" fill="#F97316" />
-        <Circle cx="30" cy="20" r="2" fill="#F97316" />
+        <Rect x="4" y="10" width="32" height="20" rx="3" stroke={Colors.secondary.orange} strokeWidth="2.5" fill="none" />
+        <Circle cx="20" cy="20" r="6" stroke={Colors.secondary.orange} strokeWidth="2.5" fill="none" />
+        <Circle cx="10" cy="20" r="2" fill={Colors.secondary.orange} />
+        <Circle cx="30" cy="20" r="2" fill={Colors.secondary.orange} />
       </Svg>
     </View>
   </View>
@@ -56,7 +57,7 @@ const LightningIcon = () => (
       <Svg width="40" height="40" viewBox="0 0 40 40">
         <Path 
           d="M22 6 L12 22 L18 22 L16 34 L28 16 L21 16 L24 6 Z" 
-          stroke="#059669" 
+          stroke={Colors.success}
           strokeWidth="2.5" 
           fill="none"
           strokeLinejoin="round"
@@ -132,7 +133,7 @@ export default function OnboardingScreen() {
       {/* Background gradient blobs */}
       <View style={styles.backgroundContainer}>
         <LinearGradient
-          colors={['#EEF2FF', '#F5F3FF', '#FDF4FF']}
+          colors={[Colors.gradient.start, Colors.gradient.middle, Colors.gradient.end]}
           style={styles.gradientBackground}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
@@ -187,7 +188,7 @@ export default function OnboardingScreen() {
             <Text style={styles.primaryButtonText}>
               {isLastScreen ? 'Get Started' : 'Next'}
             </Text>
-            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+            <Ionicons name="arrow-forward" size={20} color={Colors.text.inverse} style={styles.buttonIcon} />
           </TouchableOpacity>
 
           {/* Skip Link (only show on non-last screens) */}
@@ -209,7 +210,7 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: Colors.background.primary,
   },
   backgroundContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
   blobTop: {
     width: width * 0.8,
     height: width * 0.8,
-    backgroundColor: '#E0E7FF',
+    backgroundColor: Colors.primary.muted,
     top: -width * 0.3,
     left: -width * 0.2,
   },
@@ -266,25 +267,25 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: '800',
-    color: '#1F2937',
+    color: Colors.text.primary,
     textAlign: 'center',
     marginBottom: 8,
     letterSpacing: -0.5,
   },
   titleOrange: {
-    color: '#F97316',
+    color: Colors.secondary.orange,
   },
   subtitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1F2937',
+    color: Colors.text.primary,
     textAlign: 'center',
     marginBottom: 16,
     letterSpacing: -0.3,
   },
   description: {
     fontSize: 17,
-    color: '#6B7280',
+    color: Colors.text.secondary,
     textAlign: 'center',
     lineHeight: 26,
     paddingHorizontal: 16,
@@ -301,11 +302,11 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#D1D5DB',
+    backgroundColor: Colors.border.medium,
   },
   dotActive: {
     width: 28,
-    backgroundColor: '#3B5BDB',
+    backgroundColor: Colors.primary.main,
     borderRadius: 4,
   },
   bottomSection: {
@@ -313,21 +314,21 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === 'ios' ? 20 : 32,
   },
   primaryButton: {
-    backgroundColor: '#3B5BDB',
+    backgroundColor: Colors.primary.main,
     borderRadius: 50,
     paddingVertical: 18,
     paddingHorizontal: 32,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#3B5BDB',
+    shadowColor: Colors.primary.main,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: Colors.text.inverse,
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: 0.3,
@@ -342,7 +343,7 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 16,
-    color: '#6B7280',
+    color: Colors.text.secondary,
     fontWeight: '500',
   },
 });
