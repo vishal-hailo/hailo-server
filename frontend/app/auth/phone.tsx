@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,8 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { signInWithPhoneNumber, RecaptchaVerifier } from 'firebase/auth';
-import { auth } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import Colors from '../../constants/Colors';
 
@@ -43,40 +41,9 @@ const HailOLogo = () => (
 
 export default function PhoneScreen() {
   const router = useRouter();
-  const { sendOTP, loading: authLoading, setRecaptchaVerifier } = useAuth();
+  const { sendOTP, loading: authLoading } = useAuth();
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
-  const [recaptchaReady, setRecaptchaReady] = useState(false);
-  const recaptchaContainerRef = useRef<View>(null);
-
-  // Initialize reCAPTCHA for web
-  useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      try {
-        // Create invisible reCAPTCHA verifier
-        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {
-            console.log('reCAPTCHA solved');
-          },
-          'expired-callback': () => {
-            console.log('reCAPTCHA expired');
-          }
-        });
-        
-        setRecaptchaVerifier(verifier);
-        setRecaptchaReady(true);
-        console.log('reCAPTCHA initialized');
-      } catch (error) {
-        console.error('reCAPTCHA init error:', error);
-        // Still allow using mock OTP
-        setRecaptchaReady(true);
-      }
-    } else {
-      // For native, we'll use mock OTP for now
-      setRecaptchaReady(true);
-    }
-  }, []);
 
   const handleContinue = async () => {
     const cleanPhone = phone.replace(/\D/g, '');
@@ -101,7 +68,7 @@ export default function PhoneScreen() {
         console.log('Navigating to OTP screen...');
         router.push({
           pathname: '/auth/otp',
-          params: { phone: fullPhone, verificationId: result.verificationId || 'firebase' }
+          params: { phone: fullPhone, verificationId: result.verificationId || 'mock' }
         });
       } else {
         Alert.alert('Error', result.error || 'Failed to send OTP. Please try again.');
@@ -122,11 +89,6 @@ export default function PhoneScreen() {
 
   return (
     <View style={styles.container}>
-      {/* reCAPTCHA container for web */}
-      {Platform.OS === 'web' && (
-        <View nativeID="recaptcha-container" style={styles.recaptchaContainer} />
-      )}
-
       {/* Background */}
       <LinearGradient
         colors={[Colors.gradient.start, Colors.gradient.middle, Colors.gradient.end]}
@@ -172,17 +134,17 @@ export default function PhoneScreen() {
               </View>
             </View>
 
-            {/* Info about real SMS */}
+            {/* Info message */}
             <View style={styles.infoContainer}>
-              <Ionicons name="information-circle" size={16} color={Colors.primary.main} />
-              <Text style={styles.infoText}>You will receive a real SMS with OTP</Text>
+              <Ionicons name="information-circle" size={16} color={Colors.success} />
+              <Text style={styles.infoText}>Demo mode: Use OTP 1234</Text>
             </View>
 
             {/* Continue Button */}
             <TouchableOpacity
-              style={[styles.primaryButton, (isLoading || !recaptchaReady) && styles.buttonDisabled]}
+              style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
               onPress={handleContinue}
-              disabled={isLoading || !recaptchaReady}
+              disabled={isLoading}
               activeOpacity={0.8}
             >
               {isLoading ? (
@@ -234,12 +196,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.primary,
-  },
-  recaptchaContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    zIndex: -1,
   },
   gradientBackground: {
     ...StyleSheet.absoluteFillObject,
@@ -359,7 +315,7 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 13,
-    color: Colors.primary.main,
+    color: Colors.success,
     fontWeight: '500',
   },
   primaryButton: {
