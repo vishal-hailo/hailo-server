@@ -196,8 +196,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
 
+      // Use the authorized domain for email links
       const actionCodeSettings = {
-        url: 'https://hailo-deb7b.firebaseapp.com/auth/email-callback',
+        url: 'https://stage-view-1.preview.emergentagent.com/auth/email-callback',
         handleCodeInApp: true,
         iOS: {
           bundleId: 'com.hailo.app',
@@ -206,7 +207,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           packageName: 'com.hailo.app',
           installApp: true,
         },
-        dynamicLinkDomain: 'hailo-deb7b.page.link',
       };
 
       await sendSignInLinkToEmail(auth, email, actionCodeSettings);
