@@ -17,9 +17,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { signInWithPhoneNumber, RecaptchaVerifier } from 'firebase/auth';
+import { auth } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { firebaseConfig } from '../../config/firebase';
 import Colors from '../../constants/Colors';
 
 const { width } = Dimensions.get('window');
@@ -46,14 +46,37 @@ export default function PhoneScreen() {
   const { sendOTP, loading: authLoading, setRecaptchaVerifier } = useAuth();
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
-  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
+  const [recaptchaReady, setRecaptchaReady] = useState(false);
+  const recaptchaContainerRef = useRef<View>(null);
 
-  // Set the recaptcha verifier in auth context when component mounts
+  // Initialize reCAPTCHA for web
   useEffect(() => {
-    if (recaptchaVerifier.current) {
-      setRecaptchaVerifier(recaptchaVerifier.current as any);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      try {
+        // Create invisible reCAPTCHA verifier
+        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {
+            console.log('reCAPTCHA solved');
+          },
+          'expired-callback': () => {
+            console.log('reCAPTCHA expired');
+          }
+        });
+        
+        setRecaptchaVerifier(verifier);
+        setRecaptchaReady(true);
+        console.log('reCAPTCHA initialized');
+      } catch (error) {
+        console.error('reCAPTCHA init error:', error);
+        // Still allow using mock OTP
+        setRecaptchaReady(true);
+      }
+    } else {
+      // For native, we'll use mock OTP for now
+      setRecaptchaReady(true);
     }
-  }, [setRecaptchaVerifier]);
+  }, []);
 
   const handleContinue = async () => {
     const cleanPhone = phone.replace(/\D/g, '');
@@ -99,12 +122,10 @@ export default function PhoneScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Firebase reCAPTCHA Modal */}
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={firebaseConfig}
-        attemptInvisibleVerification={true}
-      />
+      {/* reCAPTCHA container for web */}
+      {Platform.OS === 'web' && (
+        <View nativeID="recaptcha-container" style={styles.recaptchaContainer} />
+      )}
 
       {/* Background */}
       <LinearGradient
@@ -159,9 +180,9 @@ export default function PhoneScreen() {
 
             {/* Continue Button */}
             <TouchableOpacity
-              style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+              style={[styles.primaryButton, (isLoading || !recaptchaReady) && styles.buttonDisabled]}
               onPress={handleContinue}
-              disabled={isLoading}
+              disabled={isLoading || !recaptchaReady}
               activeOpacity={0.8}
             >
               {isLoading ? (
@@ -213,6 +234,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.primary,
+  },
+  recaptchaContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: -1,
   },
   gradientBackground: {
     ...StyleSheet.absoluteFillObject,
