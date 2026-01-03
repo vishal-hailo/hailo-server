@@ -32,6 +32,13 @@ export default function OTPScreen() {
   const [resendTimer, setResendTimer] = useState(30);
   const inputRefs = useRef<(TextInput | null)[]>([]);
 
+  // Store the phone number when the page loads
+  useEffect(() => {
+    if (phone) {
+      AsyncStorage.setItem('pendingPhone', phone);
+    }
+  }, [phone]);
+
   // Countdown timer for resend
   useEffect(() => {
     if (resendTimer > 0) {
