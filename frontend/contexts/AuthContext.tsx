@@ -14,8 +14,23 @@ import {
 import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+// Get the API URL based on platform
+const getApiUrl = (): string => {
+  // For web, use relative path to hit the proxy
+  if (Platform.OS === 'web') {
+    // Use the current origin + /api prefix
+    if (typeof window !== 'undefined' && window.location) {
+      return window.location.origin;
+    }
+  }
+  // For native, use the configured backend URL
+  return process.env.EXPO_PUBLIC_BACKEND_URL || Constants.expoConfig?.extra?.backendUrl || '';
+};
+
+const API_URL = getApiUrl();
 
 interface AuthContextType {
   user: User | null;
