@@ -9,8 +9,8 @@ import json
 import sys
 from datetime import datetime
 
-# Test configuration
-BASE_URL = "http://localhost:8002"
+# Test configuration - Using FastAPI proxy as specified in review request
+BASE_URL = "http://localhost:8001"
 HEADERS = {"Content-Type": "application/json"}
 
 # Test data
