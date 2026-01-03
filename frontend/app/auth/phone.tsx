@@ -59,20 +59,24 @@ export default function PhoneScreen() {
     try {
       // Store phone for OTP verification
       await AsyncStorage.setItem('pendingPhone', fullPhone);
+      console.log('Sending OTP to:', fullPhone);
       
       const result = await sendOTP(fullPhone);
+      console.log('OTP result:', result);
       
       if (result.success) {
-        router.push({ 
-          pathname: '/auth/otp', 
-          params: { phone: fullPhone, verificationId: result.verificationId } 
+        console.log('Navigating to OTP screen...');
+        // Use replace to prevent going back to phone screen after OTP
+        router.push({
+          pathname: '/auth/otp',
+          params: { phone: fullPhone, verificationId: result.verificationId || 'mock' }
         });
       } else {
         Alert.alert('Error', result.error || 'Failed to send OTP. Please try again.');
       }
     } catch (error: any) {
       console.error('Send OTP error:', error);
-      Alert.alert('Error', 'Failed to send OTP. Please try again.');
+      Alert.alert('Error', error.message || 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
