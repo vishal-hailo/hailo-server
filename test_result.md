@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the HailO Node.js backend API running on http://localhost:8002 with comprehensive API flow testing including authentication, commute search, surge radar, and insights functionality."
+user_problem_statement: "Test the HailO mobile app authentication flow on the web preview at http://localhost:3000. Test onboarding flow, phone authentication, email authentication, and UI verification with deep indigo theme."
 
 backend:
   - task: "Health Check API"
