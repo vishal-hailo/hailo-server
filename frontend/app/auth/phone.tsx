@@ -9,17 +9,18 @@ import {
   Platform,
   Alert,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../../contexts/AuthContext';
 import Colors from '../../constants/Colors';
 
 const { width } = Dimensions.get('window');
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 // HailO Logo Component
 const HailOLogo = () => (
@@ -40,58 +41,48 @@ const HailOLogo = () => (
 
 export default function PhoneScreen() {
   const router = useRouter();
+  const { sendOTP, loading: authLoading } = useAuth();
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleContinue = async () => {
-    const fullPhone = '+91' + phone.replace(/\D/g, '');
+    const cleanPhone = phone.replace(/\D/g, '');
     
-    if (phone.replace(/\D/g, '').length < 10) {
+    if (cleanPhone.length < 10) {
       Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number');
       return;
     }
 
-    console.log('Attempting to send OTP to:', fullPhone);
-    console.log('API URL:', API_URL);
+    const fullPhone = '+91' + cleanPhone;
     setLoading(true);
     
     try {
-      console.log('Making request to:', `${API_URL}/api/v1/auth/request-otp`);
-      const response = await axios.post(`${API_URL}/api/v1/auth/request-otp`, { phone: fullPhone }, {
-        timeout: 10000,
-      });
-      console.log('OTP Response:', response.data);
+      // Store phone for OTP verification
+      await AsyncStorage.setItem('pendingPhone', fullPhone);
       
-      if (response.data.success) {
-        console.log('OTP sent successfully, navigating to OTP screen');
-        router.push({ pathname: '/auth/otp', params: { phone: fullPhone } });
+      const result = await sendOTP(fullPhone);
+      
+      if (result.success) {
+        router.push({ 
+          pathname: '/auth/otp', 
+          params: { phone: fullPhone, verificationId: result.verificationId } 
+        });
       } else {
-        Alert.alert('Error', 'Failed to send OTP. Please try again.');
+        Alert.alert('Error', result.error || 'Failed to send OTP. Please try again.');
       }
     } catch (error: any) {
-      console.error('Request OTP error:', error);
-      
-      let errorMessage = 'Failed to send OTP. ';
-      if (error.code === 'ECONNABORTED') {
-        errorMessage += 'Request timed out.';
-      } else if (error.response) {
-        errorMessage += error.response.data?.error || 'Server error.';
-      } else if (error.request) {
-        errorMessage += 'Cannot reach server. Check your connection.';
-      } else {
-        errorMessage += error.message;
-      }
-      
-      Alert.alert('Error', errorMessage);
+      console.error('Send OTP error:', error);
+      Alert.alert('Error', 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleEmailSignIn = () => {
-    // Navigate to email sign in (can be implemented later)
-    Alert.alert('Coming Soon', 'Email sign in will be available soon.');
+    router.push('/auth/email');
   };
+
+  const isLoading = loading || authLoading;
 
   return (
     <View style={styles.container}>
@@ -125,7 +116,8 @@ export default function PhoneScreen() {
             {/* Phone Input */}
             <View style={styles.inputContainer}>
               <View style={styles.inputWrapper}>
-                <Ionicons name="call-outline" size={22} color={Colors.text.tertiary} style={styles.inputIcon} />
+                <Text style={styles.countryCode}>+91</Text>
+                <View style={styles.divider} />
                 <TextInput
                   style={styles.input}
                   value={phone}
@@ -134,20 +126,23 @@ export default function PhoneScreen() {
                   placeholderTextColor={Colors.text.tertiary}
                   keyboardType="phone-pad"
                   maxLength={10}
+                  editable={!isLoading}
                 />
               </View>
             </View>
 
             {/* Continue Button */}
             <TouchableOpacity
-              style={[styles.primaryButton, loading && styles.buttonDisabled]}
+              style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
               onPress={handleContinue}
-              disabled={loading}
+              disabled={isLoading}
               activeOpacity={0.8}
             >
-              <Text style={styles.primaryButtonText}>
-                {loading ? 'Sending...' : 'Continue with Phone'}
-              </Text>
+              {isLoading ? (
+                <ActivityIndicator color={Colors.text.inverse} />
+              ) : (
+                <Text style={styles.primaryButtonText}>Continue with Phone</Text>
+              )}
             </TouchableOpacity>
 
             {/* Divider */}
@@ -162,6 +157,7 @@ export default function PhoneScreen() {
               style={styles.secondaryButton}
               onPress={handleEmailSignIn}
               activeOpacity={0.7}
+              disabled={isLoading}
             >
               <Ionicons name="mail-outline" size={20} color={Colors.text.primary} style={styles.buttonIconLeft} />
               <Text style={styles.secondaryButtonText}>Sign in with Email</Text>
@@ -283,7 +279,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     height: 56,
   },
-  inputIcon: {
+  countryCode: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginRight: 12,
+  },
+  divider: {
+    width: 1,
+    height: 24,
+    backgroundColor: Colors.border.light,
     marginRight: 12,
   },
   input: {
