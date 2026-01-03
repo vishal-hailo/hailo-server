@@ -3,16 +3,11 @@ import {
   User,
   onAuthStateChanged,
   signOut as firebaseSignOut,
-  PhoneAuthProvider,
-  signInWithCredential,
-  signInWithPhoneNumber,
   sendSignInLinkToEmail,
   isSignInWithEmailLink,
   signInWithEmailLink,
-  ConfirmationResult,
-  ApplicationVerifier,
 } from 'firebase/auth';
-import { auth, firebaseConfig } from '../config/firebase';
+import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Platform } from 'react-native';
@@ -38,18 +33,12 @@ const getApiUrl = (): string => {
 const API_URL = getApiUrl();
 console.log('AuthContext API_URL:', API_URL);
 
-// Flag to use Firebase Phone Auth (real SMS) vs Mock OTP
-const USE_FIREBASE_PHONE_AUTH = true;
-
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
   initialized: boolean;
   error: string | null;
-  confirmationResult: ConfirmationResult | null;
-  recaptchaVerifier: ApplicationVerifier | null;
-  setRecaptchaVerifier: (verifier: ApplicationVerifier | null) => void;
   // Phone Auth
   sendOTP: (phoneNumber: string) => Promise<{ success: boolean; verificationId?: string; error?: string }>;
   verifyOTP: (verificationId: string, otp: string) => Promise<{ success: boolean; error?: string }>;
@@ -94,8 +83,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const [recaptchaVerifier, setRecaptchaVerifier] = useState<ApplicationVerifier | null>(null);
 
   // Listen to Firebase auth state changes
   useEffect(() => {
@@ -140,46 +127,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Send OTP using Firebase Phone Auth (sends real SMS)
+  // Send OTP using backend mock (for development/Expo Go)
+  // In production with a proper build, you would use Firebase Phone Auth
   const sendOTP = async (phoneNumber: string): Promise<{ success: boolean; verificationId?: string; error?: string }> => {
     try {
       setLoading(true);
       setError(null);
 
-      if (USE_FIREBASE_PHONE_AUTH && recaptchaVerifier) {
-        console.log('Using Firebase Phone Auth for:', phoneNumber);
-        
-        // Use Firebase signInWithPhoneNumber - this sends real SMS
-        const confirmation = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
-        setConfirmationResult(confirmation);
-        
-        console.log('Firebase OTP sent successfully');
+      console.log('Sending OTP to:', phoneNumber);
+      
+      // Use backend mock OTP for development
+      const response = await axios.post(`${API_URL}/api/v1/auth/request-otp`, {
+        phone: phoneNumber,
+      });
+
+      if (response.data.success) {
+        console.log('OTP sent successfully (mock)');
         return {
           success: true,
-          verificationId: confirmation.verificationId,
+          verificationId: 'mock-verification-id',
         };
-      } else {
-        // Fallback to mock OTP for development/testing
-        console.log('Using mock OTP (recaptcha not available)');
-        const response = await axios.post(`${API_URL}/api/v1/auth/request-otp`, {
-          phone: phoneNumber,
-        });
-
-        if (response.data.success) {
-          return {
-            success: true,
-            verificationId: 'mock-verification-id',
-          };
-        }
-        return { success: false, error: 'Failed to send OTP' };
       }
+      
+      return { success: false, error: 'Failed to send OTP' };
     } catch (err: any) {
       console.error('Send OTP error:', err);
-      const errorMessage = err.code === 'auth/invalid-phone-number' 
-        ? 'Invalid phone number format. Use +91XXXXXXXXXX'
-        : err.code === 'auth/too-many-requests'
-        ? 'Too many attempts. Please try again later.'
-        : err.message || 'Failed to send OTP';
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to send OTP';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -187,51 +160,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Verify OTP
+  // Verify OTP using backend
   const verifyOTP = async (verificationId: string, otp: string): Promise<{ success: boolean; error?: string }> => {
     try {
       setLoading(true);
       setError(null);
 
-      if (USE_FIREBASE_PHONE_AUTH && confirmationResult) {
-        console.log('Verifying OTP with Firebase...');
-        
-        // Verify with Firebase
-        const result = await confirmationResult.confirm(otp);
-        
-        if (result.user) {
-          console.log('Firebase OTP verified successfully');
-          const idToken = await result.user.getIdToken();
-          await syncWithBackend(idToken);
-          return { success: true };
-        }
-        
-        return { success: false, error: 'Verification failed' };
-      } else {
-        // Fallback to mock OTP verification
-        const phone = await AsyncStorage.getItem('pendingPhone');
-        
-        const response = await axios.post(`${API_URL}/api/v1/auth/verify-otp`, {
-          phone,
-          otp,
-        });
+      const phone = await AsyncStorage.getItem('pendingPhone');
+      console.log('Verifying OTP for phone:', phone);
+      
+      const response = await axios.post(`${API_URL}/api/v1/auth/verify-otp`, {
+        phone,
+        otp,
+      });
 
-        if (response.data.token) {
-          await AsyncStorage.setItem('authToken', response.data.token);
-          await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
-          setUserProfile(response.data.user);
-          return { success: true };
-        }
-
-        return { success: false, error: 'Verification failed' };
+      if (response.data.token) {
+        await AsyncStorage.setItem('authToken', response.data.token);
+        await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
+        setUserProfile(response.data.user);
+        return { success: true };
       }
+
+      return { success: false, error: 'Verification failed' };
     } catch (err: any) {
       console.error('Verify OTP error:', err);
-      const errorMessage = err.code === 'auth/invalid-verification-code'
-        ? 'Invalid OTP. Please check and try again.'
-        : err.code === 'auth/code-expired'
-        ? 'OTP expired. Please request a new one.'
-        : err.response?.data?.error || err.message || 'Invalid OTP';
+      const errorMessage = err.response?.data?.error || err.message || 'Invalid OTP';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -303,10 +256,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       await firebaseSignOut(auth);
-      await AsyncStorage.multiRemove(['authToken', 'user', 'onboardingCompleted', 'locationsSetup']);
+      await AsyncStorage.multiRemove(['authToken', 'user', 'onboardingCompleted', 'locationsSetup', 'pendingPhone']);
       setUser(null);
       setUserProfile(null);
-      setConfirmationResult(null);
     } catch (err: any) {
       console.error('Sign out error:', err);
       setError(err.message);
@@ -365,9 +317,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     initialized,
     error,
-    confirmationResult,
-    recaptchaVerifier,
-    setRecaptchaVerifier,
     sendOTP,
     verifyOTP,
     sendEmailLink,
