@@ -225,6 +225,18 @@ backend:
         agent: "testing"
         comment: "✅ Database operations working correctly. User creation, commute logging, and data retrieval all functioning properly through Prisma ORM."
 
+  - task: "Authentication API Endpoints (Review Request)"
+    implemented: true
+    working: true
+    file: "/app/server/src/routes/auth.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "✅ All authentication endpoints tested through FastAPI proxy (localhost:8001). POST /api/v1/auth/request-otp returns mockOtp '1234', POST /api/v1/auth/verify-otp returns valid JWT token, GET /api/v1/locations works with auth, POST /api/v1/locations creates location successfully, and auth protection works correctly. All 6/6 tests passed."
+
 frontend:
   # Frontend testing not performed as per instructions
 
