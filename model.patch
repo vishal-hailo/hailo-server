@@ -1,1189 +1,1299 @@
-diff --git a/auth_test.py b/auth_test.py
-new file mode 100644
-index 0000000..ed28f9f
---- /dev/null
-+++ b/auth_test.py
-@@ -0,0 +1,252 @@
-+#!/usr/bin/env python3
-+"""
-+HailO Authentication API Testing Suite
-+Tests the specific endpoints mentioned in the review request
-+"""
-+
-+import requests
-+import json
-+import sys
-+
-+# Base URL for testing (FastAPI proxy to Node.js backend)
-+BASE_URL = "http://localhost:8001"
-+
-+def test_health_check():
-+    """Test GET /api/v1/health"""
-+    print("🔍 Testing Health Check API...")
-+    
-+    try:
-+        response = requests.get(f"{BASE_URL}/api/v1/health")
-+        print(f"   Status Code: {response.status_code}")
-+        print(f"   Response: {response.text}")
-+        
-+        if response.status_code == 200:
-+            data = response.json()
-+            if data.get("status") == "OK":
-+                print("✅ Health Check API - Working")
-+                return True
-+            else:
-+                print(f"❌ Health Check API - Status not OK: {data.get('status')}")
-+                return False
-+        else:
-+            print(f"❌ Health Check API - Expected 200, got {response.status_code}")
-+            return False
-+            
-+    except Exception as e:
-+        print(f"❌ Health Check API - Request failed: {str(e)}")
-+        return False
-+
-+def test_request_otp():
-+    """Test POST /api/v1/auth/request-otp"""
-+    print("\n🔍 Testing Send OTP API...")
-+    
-+    try:
-+        payload = {"phone": "+919876543210"}
-+        response = requests.post(f"{BASE_URL}/api/v1/auth/request-otp", 
-+                               json=payload, 
-+                               headers={"Content-Type": "application/json"})
-+        
-+        print(f"   Status Code: {response.status_code}")
-+        print(f"   Response: {response.text}")
-+        
-+        if response.status_code == 200:
-+            data = response.json()
-+            if data.get("success") and "mockOtp" in data:
-+                print("✅ Send OTP API - Working")
-+                return True, data.get("mockOtp")
-+            else:
-+                print(f"❌ Send OTP API - Invalid response format: {data}")
-+                return False, None
-+        else:
-+            print(f"❌ Send OTP API - Expected 200, got {response.status_code}")
-+            return False, None
-+            
-+    except Exception as e:
-+        print(f"❌ Send OTP API - Request failed: {str(e)}")
-+        return False, None
-+
-+def test_verify_otp(otp):
-+    """Test POST /api/v1/auth/verify-otp"""
-+    print("\n🔍 Testing Verify OTP API...")
-+    
-+    try:
-+        payload = {"phone": "+919876543210", "otp": otp or "1234"}
-+        response = requests.post(f"{BASE_URL}/api/v1/auth/verify-otp", 
-+                               json=payload, 
-+                               headers={"Content-Type": "application/json"})
-+        
-+        print(f"   Status Code: {response.status_code}")
-+        print(f"   Response: {response.text}")
-+        
-+        if response.status_code == 200:
-+            data = response.json()
-+            if "token" in data and "user" in data:
-+                print("✅ Verify OTP API - Working")
-+                return True, data.get("token")
-+            else:
-+                print(f"❌ Verify OTP API - Missing token or user: {data}")
-+                return False, None
-+        else:
-+            print(f"❌ Verify OTP API - Expected 200, got {response.status_code}")
-+            return False, None
-+            
-+    except Exception as e:
-+        print(f"❌ Verify OTP API - Request failed: {str(e)}")
-+        return False, None
-+
-+def test_get_locations(token):
-+    """Test GET /api/v1/locations (requires auth)"""
-+    print("\n🔍 Testing Get Locations API...")
-+    
-+    if not token:
-+        print("❌ Get Locations API - No auth token available")
-+        return False
-+    
-+    try:
-+        headers = {
-+            "Content-Type": "application/json",
-+            "Authorization": f"Bearer {token}"
-+        }
-+        response = requests.get(f"{BASE_URL}/api/v1/locations", headers=headers)
-+        
-+        print(f"   Status Code: {response.status_code}")
-+        print(f"   Response: {response.text}")
-+        
-+        if response.status_code == 200:
-+            data = response.json()
-+            if isinstance(data, list):
-+                print("✅ Get Locations API - Working")
-+                return True
-+            else:
-+                print(f"❌ Get Locations API - Expected array, got: {type(data)}")
-+                return False
-+        elif response.status_code == 401:
-+            print("❌ Get Locations API - Authentication failed")
-+            return False
-+        else:
-+            print(f"❌ Get Locations API - Expected 200, got {response.status_code}")
-+            return False
-+            
-+    except Exception as e:
-+        print(f"❌ Get Locations API - Request failed: {str(e)}")
-+        return False
-+
-+def test_create_location(token):
-+    """Test POST /api/v1/locations (requires auth)"""
-+    print("\n🔍 Testing Create Location API...")
-+    
-+    if not token:
-+        print("❌ Create Location API - No auth token available")
-+        return False
-+    
-+    try:
-+        headers = {
-+            "Content-Type": "application/json",
-+            "Authorization": f"Bearer {token}"
-+        }
-+        payload = {
-+            "label": "Home",
-+            "type": "HOME", 
-+            "address": "Test Address",
-+            "isPrimary": True
-+        }
-+        response = requests.post(f"{BASE_URL}/api/v1/locations", 
-+                               json=payload, headers=headers)
-+        
-+        print(f"   Status Code: {response.status_code}")
-+        print(f"   Response: {response.text}")
-+        
-+        if response.status_code in [200, 201]:
-+            data = response.json()
-+            print("✅ Create Location API - Working")
-+            return True
-+        elif response.status_code == 401:
-+            print("❌ Create Location API - Authentication failed")
-+            return False
-+        else:
-+            print(f"❌ Create Location API - Expected 200/201, got {response.status_code}")
-+            return False
-+            
-+    except Exception as e:
-+        print(f"❌ Create Location API - Request failed: {str(e)}")
-+        return False
-+
-+def test_auth_protection():
-+    """Test that protected endpoints require authentication"""
-+    print("\n🔍 Testing Authentication Protection...")
-+    
-+    try:
-+        # Test locations endpoint without auth
-+        response = requests.get(f"{BASE_URL}/api/v1/locations", 
-+                              headers={"Content-Type": "application/json"})
-+        
-+        print(f"   Status Code: {response.status_code}")
-+        print(f"   Response: {response.text}")
-+        
-+        if response.status_code == 401:
-+            print("✅ Authentication Protection - Working")
-+            return True
-+        else:
-+            print(f"❌ Authentication Protection - Expected 401, got {response.status_code}")
-+            return False
-+            
-+    except Exception as e:
-+        print(f"❌ Authentication Protection - Request failed: {str(e)}")
-+        return False
-+
-+def main():
-+    """Main test execution"""
-+    print("🚀 Starting HailO Authentication API Tests")
-+    print(f"📍 Testing server at: {BASE_URL}")
-+    print("=" * 60)
-+    
-+    results = []
-+    
-+    # Test 1: Health Check
-+    results.append(("Health Check", test_health_check()))
-+    
-+    # Test 2: Send OTP
-+    otp_success, mock_otp = test_request_otp()
-+    results.append(("Send OTP", otp_success))
-+    
-+    # Test 3: Verify OTP (needed for auth token)
-+    verify_success, token = test_verify_otp(mock_otp)
-+    results.append(("Verify OTP", verify_success))
-+    
-+    # Test 4: Get Locations (requires auth)
-+    results.append(("Get Locations", test_get_locations(token)))
-+    
-+    # Test 5: Create Location (requires auth)
-+    results.append(("Create Location", test_create_location(token)))
-+    
-+    # Test 6: Auth Protection
-+    results.append(("Auth Protection", test_auth_protection()))
-+    
-+    # Print summary
-+    print("\n" + "=" * 60)
-+    print("📊 TEST SUMMARY")
-+    print("=" * 60)
-+    
-+    passed = 0
-+    failed = 0
-+    
-+    for test_name, success in results:
-+        status = "✅ PASS" if success else "❌ FAIL"
-+        print(f"{status} {test_name}")
-+        if success:
-+            passed += 1
-+        else:
-+            failed += 1
-+    
-+    print(f"\nOverall: {passed}/{len(results)} tests passed")
-+    
-+    if failed == 0:
-+        print("🎉 All authentication tests passed!")
-+        return True
-+    else:
-+        print(f"⚠️  {failed} test(s) failed. Check the details above.")
-+        return False
-+
-+if __name__ == "__main__":
-+    success = main()
-+    sys.exit(0 if success else 1)
-\ No newline at end of file
 diff --git a/model.patch b/model.patch
-index 20a2705..6a73c5e 100644
+index cf344af..e69de29 100644
 --- a/model.patch
 +++ b/model.patch
-@@ -1,892 +0,0 @@
+@@ -1,1189 +0,0 @@
+-diff --git a/auth_test.py b/auth_test.py
+-new file mode 100644
+-index 0000000..ed28f9f
+---- /dev/null
+-+++ b/auth_test.py
+-@@ -0,0 +1,252 @@
+-+#!/usr/bin/env python3
+-+"""
+-+HailO Authentication API Testing Suite
+-+Tests the specific endpoints mentioned in the review request
+-+"""
+-+
+-+import requests
+-+import json
+-+import sys
+-+
+-+# Base URL for testing (FastAPI proxy to Node.js backend)
+-+BASE_URL = "http://localhost:8001"
+-+
+-+def test_health_check():
+-+    """Test GET /api/v1/health"""
+-+    print("🔍 Testing Health Check API...")
+-+    
+-+    try:
+-+        response = requests.get(f"{BASE_URL}/api/v1/health")
+-+        print(f"   Status Code: {response.status_code}")
+-+        print(f"   Response: {response.text}")
+-+        
+-+        if response.status_code == 200:
+-+            data = response.json()
+-+            if data.get("status") == "OK":
+-+                print("✅ Health Check API - Working")
+-+                return True
+-+            else:
+-+                print(f"❌ Health Check API - Status not OK: {data.get('status')}")
+-+                return False
+-+        else:
+-+            print(f"❌ Health Check API - Expected 200, got {response.status_code}")
+-+            return False
+-+            
+-+    except Exception as e:
+-+        print(f"❌ Health Check API - Request failed: {str(e)}")
+-+        return False
+-+
+-+def test_request_otp():
+-+    """Test POST /api/v1/auth/request-otp"""
+-+    print("\n🔍 Testing Send OTP API...")
+-+    
+-+    try:
+-+        payload = {"phone": "+919876543210"}
+-+        response = requests.post(f"{BASE_URL}/api/v1/auth/request-otp", 
+-+                               json=payload, 
+-+                               headers={"Content-Type": "application/json"})
+-+        
+-+        print(f"   Status Code: {response.status_code}")
+-+        print(f"   Response: {response.text}")
+-+        
+-+        if response.status_code == 200:
+-+            data = response.json()
+-+            if data.get("success") and "mockOtp" in data:
+-+                print("✅ Send OTP API - Working")
+-+                return True, data.get("mockOtp")
+-+            else:
+-+                print(f"❌ Send OTP API - Invalid response format: {data}")
+-+                return False, None
+-+        else:
+-+            print(f"❌ Send OTP API - Expected 200, got {response.status_code}")
+-+            return False, None
+-+            
+-+    except Exception as e:
+-+        print(f"❌ Send OTP API - Request failed: {str(e)}")
+-+        return False, None
+-+
+-+def test_verify_otp(otp):
+-+    """Test POST /api/v1/auth/verify-otp"""
+-+    print("\n🔍 Testing Verify OTP API...")
+-+    
+-+    try:
+-+        payload = {"phone": "+919876543210", "otp": otp or "1234"}
+-+        response = requests.post(f"{BASE_URL}/api/v1/auth/verify-otp", 
+-+                               json=payload, 
+-+                               headers={"Content-Type": "application/json"})
+-+        
+-+        print(f"   Status Code: {response.status_code}")
+-+        print(f"   Response: {response.text}")
+-+        
+-+        if response.status_code == 200:
+-+            data = response.json()
+-+            if "token" in data and "user" in data:
+-+                print("✅ Verify OTP API - Working")
+-+                return True, data.get("token")
+-+            else:
+-+                print(f"❌ Verify OTP API - Missing token or user: {data}")
+-+                return False, None
+-+        else:
+-+            print(f"❌ Verify OTP API - Expected 200, got {response.status_code}")
+-+            return False, None
+-+            
+-+    except Exception as e:
+-+        print(f"❌ Verify OTP API - Request failed: {str(e)}")
+-+        return False, None
+-+
+-+def test_get_locations(token):
+-+    """Test GET /api/v1/locations (requires auth)"""
+-+    print("\n🔍 Testing Get Locations API...")
+-+    
+-+    if not token:
+-+        print("❌ Get Locations API - No auth token available")
+-+        return False
+-+    
+-+    try:
+-+        headers = {
+-+            "Content-Type": "application/json",
+-+            "Authorization": f"Bearer {token}"
+-+        }
+-+        response = requests.get(f"{BASE_URL}/api/v1/locations", headers=headers)
+-+        
+-+        print(f"   Status Code: {response.status_code}")
+-+        print(f"   Response: {response.text}")
+-+        
+-+        if response.status_code == 200:
+-+            data = response.json()
+-+            if isinstance(data, list):
+-+                print("✅ Get Locations API - Working")
+-+                return True
+-+            else:
+-+                print(f"❌ Get Locations API - Expected array, got: {type(data)}")
+-+                return False
+-+        elif response.status_code == 401:
+-+            print("❌ Get Locations API - Authentication failed")
+-+            return False
+-+        else:
+-+            print(f"❌ Get Locations API - Expected 200, got {response.status_code}")
+-+            return False
+-+            
+-+    except Exception as e:
+-+        print(f"❌ Get Locations API - Request failed: {str(e)}")
+-+        return False
+-+
+-+def test_create_location(token):
+-+    """Test POST /api/v1/locations (requires auth)"""
+-+    print("\n🔍 Testing Create Location API...")
+-+    
+-+    if not token:
+-+        print("❌ Create Location API - No auth token available")
+-+        return False
+-+    
+-+    try:
+-+        headers = {
+-+            "Content-Type": "application/json",
+-+            "Authorization": f"Bearer {token}"
+-+        }
+-+        payload = {
+-+            "label": "Home",
+-+            "type": "HOME", 
+-+            "address": "Test Address",
+-+            "isPrimary": True
+-+        }
+-+        response = requests.post(f"{BASE_URL}/api/v1/locations", 
+-+                               json=payload, headers=headers)
+-+        
+-+        print(f"   Status Code: {response.status_code}")
+-+        print(f"   Response: {response.text}")
+-+        
+-+        if response.status_code in [200, 201]:
+-+            data = response.json()
+-+            print("✅ Create Location API - Working")
+-+            return True
+-+        elif response.status_code == 401:
+-+            print("❌ Create Location API - Authentication failed")
+-+            return False
+-+        else:
+-+            print(f"❌ Create Location API - Expected 200/201, got {response.status_code}")
+-+            return False
+-+            
+-+    except Exception as e:
+-+        print(f"❌ Create Location API - Request failed: {str(e)}")
+-+        return False
+-+
+-+def test_auth_protection():
+-+    """Test that protected endpoints require authentication"""
+-+    print("\n🔍 Testing Authentication Protection...")
+-+    
+-+    try:
+-+        # Test locations endpoint without auth
+-+        response = requests.get(f"{BASE_URL}/api/v1/locations", 
+-+                              headers={"Content-Type": "application/json"})
+-+        
+-+        print(f"   Status Code: {response.status_code}")
+-+        print(f"   Response: {response.text}")
+-+        
+-+        if response.status_code == 401:
+-+            print("✅ Authentication Protection - Working")
+-+            return True
+-+        else:
+-+            print(f"❌ Authentication Protection - Expected 401, got {response.status_code}")
+-+            return False
+-+            
+-+    except Exception as e:
+-+        print(f"❌ Authentication Protection - Request failed: {str(e)}")
+-+        return False
+-+
+-+def main():
+-+    """Main test execution"""
+-+    print("🚀 Starting HailO Authentication API Tests")
+-+    print(f"📍 Testing server at: {BASE_URL}")
+-+    print("=" * 60)
+-+    
+-+    results = []
+-+    
+-+    # Test 1: Health Check
+-+    results.append(("Health Check", test_health_check()))
+-+    
+-+    # Test 2: Send OTP
+-+    otp_success, mock_otp = test_request_otp()
+-+    results.append(("Send OTP", otp_success))
+-+    
+-+    # Test 3: Verify OTP (needed for auth token)
+-+    verify_success, token = test_verify_otp(mock_otp)
+-+    results.append(("Verify OTP", verify_success))
+-+    
+-+    # Test 4: Get Locations (requires auth)
+-+    results.append(("Get Locations", test_get_locations(token)))
+-+    
+-+    # Test 5: Create Location (requires auth)
+-+    results.append(("Create Location", test_create_location(token)))
+-+    
+-+    # Test 6: Auth Protection
+-+    results.append(("Auth Protection", test_auth_protection()))
+-+    
+-+    # Print summary
+-+    print("\n" + "=" * 60)
+-+    print("📊 TEST SUMMARY")
+-+    print("=" * 60)
+-+    
+-+    passed = 0
+-+    failed = 0
+-+    
+-+    for test_name, success in results:
+-+        status = "✅ PASS" if success else "❌ FAIL"
+-+        print(f"{status} {test_name}")
+-+        if success:
+-+            passed += 1
+-+        else:
+-+            failed += 1
+-+    
+-+    print(f"\nOverall: {passed}/{len(results)} tests passed")
+-+    
+-+    if failed == 0:
+-+        print("🎉 All authentication tests passed!")
+-+        return True
+-+    else:
+-+        print(f"⚠️  {failed} test(s) failed. Check the details above.")
+-+        return False
+-+
+-+if __name__ == "__main__":
+-+    success = main()
+-+    sys.exit(0 if success else 1)
+-\ No newline at end of file
 -diff --git a/model.patch b/model.patch
--index dc4a6cb..e69de29 100644
+-index 20a2705..6a73c5e 100644
 ---- a/model.patch
 -+++ b/model.patch
--@@ -1,887 +0,0 @@
---diff --git a/frontend/app/(tabs)/settings.tsx b/frontend/app/(tabs)/settings.tsx
---index a15da77..a9ebff7 100644
------ a/frontend/app/(tabs)/settings.tsx
---+++ b/frontend/app/(tabs)/settings.tsx
---@@ -1,4 +1,4 @@
----import React, { useState, useEffect } from 'react';
---+import React, { useState, useEffect, useCallback } from 'react';
--- import {
---   View,
---   Text,
---@@ -12,29 +12,87 @@ import { SafeAreaView } from 'react-native-safe-area-context';
--- import { Ionicons } from '@expo/vector-icons';
--- import AsyncStorage from '@react-native-async-storage/async-storage';
--- import { useRouter } from 'expo-router';
---+import axios from 'axios';
--- import Colors from '../../constants/Colors';
--- 
--- const { width } = Dimensions.get('window');
--- 
--- export default function ProfileScreen() {
---   const router = useRouter();
----  const [user, setUser] = useState<any>(null);
---+  const [user, setUser] = useState(null);
---   const [activeTab, setActiveTab] = useState<'overview' | 'insights'>('overview');
--- 
----  useEffect(() => {
----    loadUserData();
----  }, []);
---+  const [stats, setStats] = useState({
---+    totalRides: 0,
---+    distance: 0,
---+    timeSaved: 0,
---+    avgRating: 0,
---+    totalSaved: 0,
---+    percentageChange: {
---+      rides: 0,
---+      distance: 0,
---+      time: 0,
---+      rating: 0,
---+    }
---+  });
---+  const [savingsBreakdown, setSavingsBreakdown] = useState([]);
---+  const [topRoutes, setTopRoutes] = useState([]);
---+  const [loading, setLoading] = useState(true);
--- 
----  const loadUserData = async () => {
---+  const loadUserData = useCallback(async () => {
---     try {
----      const userStr = await AsyncStorage.getItem('user');
----      if (userStr) {
----        setUser(JSON.parse(userStr));
----      }
---+      setLoading(true);
---+      const token = await AsyncStorage.getItem('authToken');
---+      const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
---+      
---+      // Fetch user profile
---+      const userResponse = await axios.get(`${API_URL}/api/v1/me`, {
---+        headers: { Authorization: `Bearer ${token}` },
---+      });
---+      setUser(userResponse.data);
---+      
---+      // Fetch insights
---+      const insightsResponse = await axios.get(`${API_URL}/api/v1/insights/summary`, {
---+        headers: { Authorization: `Bearer ${token}` },
---+      });
---+      
---+      const insightsData = insightsResponse.data;
---+      setStats({
---+        totalRides: insightsData.stats.totalRides || 0,
---+        distance: insightsData.stats.totalDistance || 0,
---+        timeSaved: insightsData.stats.timeSaved || 0,
---+        avgRating: insightsData.stats.rating || 4.9,
---+        totalSaved: insightsData.stats.totalSaved || 0,
---+        percentageChange: {
---+          rides: 8,
---+          distance: 12,
---+          time: 15,
---+          rating: 0,
---+        }
---+      });
---+      
---+      setSavingsBreakdown(insightsData.savingsBreakdown || []);
---+      setTopRoutes(insightsData.topRoutes || []);
---+      
---     } catch (error) {
----      console.error('Load user error:', error);
---+      console.error('Load user data error:', error);
---+      // Set default values on error
---+      setStats({
---+        totalRides: 0,
---+        distance: 0,
---+        timeSaved: 0,
---+        avgRating: 4.9,
---+        totalSaved: 0,
---+        percentageChange: { rides: 0, distance: 0, time: 0, rating: 0 }
---+      });
---+    } finally {
---+      setLoading(false);
---     }
----  };
---+  }, [setUser, setStats, setSavingsBreakdown, setTopRoutes, setLoading]);
---+
---+  useEffect(() => {
---+    loadUserData();
---+  }, [loadUserData]);
--- 
---   const handleLogout = async () => {
---     Alert.alert(
---@@ -64,56 +122,6 @@ export default function ProfileScreen() {
---     );
---   };
--- 
----  // Mock data - will be replaced with API calls later
----  const stats = {
----    totalRides: 24,
----    distance: 186,
----    timeSaved: 4.5,
----    avgRating: 4.9,
----    percentageChange: {
----      rides: 8,
----      distance: 12,
----      time: 15,
----      rating: 0,
----    }
----  };
----
----  const savingsBreakdown = [
----    {
----      id: 1,
----      icon: 'flash',
----      iconColor: '#F97316',
----      iconBg: '#FED7AA',
----      title: 'Surge Timing',
----      subtitle: 'Avoided 8 peak surge periods',
----      amount: 580,
----    },
----    {
----      id: 2,
----      icon: 'cloudy',
----      iconColor: '#3B82F6',
----      iconBg: '#DBEAFE',
----      title: 'Weather Predictions',
----      subtitle: 'Pre-booked before 3 rain events',
----      amount: 120,
----    },
----    {
----      id: 3,
----      icon: 'stats-chart',
----      iconColor: '#8B5CF6',
----      iconBg: '#EDE9FE',
----      title: 'Traffic Optimization',
----      subtitle: 'Optimal route timing 12 times',
----      amount: 150,
----    },
----  ];
----
----  const topRoutes = [
----    { id: 1, from: 'Home', to: 'Office', rides: 12, saved: 180 },
----    { id: 2, from: 'Office', to: 'Home', rides: 10, saved: 150 },
----    { id: 3, from: 'Home', to: 'Phoenix Mall', rides: 4, saved: 80 },
----  ];
----
---   return (
---     <SafeAreaView style={styles.container} edges={['top']}>
---       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
---@@ -172,6 +180,13 @@ export default function ProfileScreen() {
---           </TouchableOpacity>
---         </View>
--- 
---+        {/* Loading State */}
---+        {loading ? (
---+          <View style={styles.loadingContainer}>
---+            <Text style={styles.loadingText}>Loading your insights...</Text>
---+          </View>
---+        ) : (
---+          <>
---         {/* Content based on active tab */}
---         {activeTab === 'overview' ? (
---           <View style={styles.content}>
---@@ -278,7 +293,7 @@ export default function ProfileScreen() {
---             <View style={styles.totalSavedCard}>
---               <Text style={styles.totalSavedLabel}>Total Saved this month</Text>
---               <View style={styles.totalSavedRow}>
----                <Text style={styles.totalSavedAmount}>₹850</Text>
---+                <Text style={styles.totalSavedAmount}>₹{stats.totalSaved}</Text>
---                 <View style={styles.totalSavedBadge}>
---                   <Ionicons name="trending-up" size={14} color="#10B981" />
---                   <Text style={styles.totalSavedPercentage}>+23%</Text>
---@@ -305,6 +320,8 @@ export default function ProfileScreen() {
---             </View>
---           </View>
---         )}
---+        </>
---+        )}
--- 
---         {/* Menu Items */}
---         <View style={styles.menuSection}>
---@@ -741,4 +758,17 @@ const styles = StyleSheet.create({
---     fontWeight: '600',
---     color: Colors.text.inverse,
---   },
---+
---+  // Loading State
---+  loadingContainer: {
---+    flex: 1,
---+    justifyContent: 'center',
---+    alignItems: 'center',
---+    paddingVertical: 40,
---+  },
---+  loadingText: {
---+    fontSize: 16,
---+    color: Colors.text.secondary,
---+    textAlign: 'center',
---+  },
--- });
+-@@ -1,892 +0,0 @@
 --diff --git a/model.patch b/model.patch
---index 4c61741..367d005 100644
+--index dc4a6cb..e69de29 100644
 ----- a/model.patch
 --+++ b/model.patch
---@@ -1,666 +0,0 @@
----diff --git a/frontend/app/(tabs)/_layout.tsx b/frontend/app/(tabs)/_layout.tsx
----index 5a00445..c5d7abb 100644
------- a/frontend/app/(tabs)/_layout.tsx
----+++ b/frontend/app/(tabs)/_layout.tsx
----@@ -1,20 +1,32 @@
---- import { Tabs } from 'expo-router';
----+import { View, StyleSheet } from 'react-native';
+--@@ -1,887 +0,0 @@
+---diff --git a/frontend/app/(tabs)/settings.tsx b/frontend/app/(tabs)/settings.tsx
+---index a15da77..a9ebff7 100644
+------ a/frontend/app/(tabs)/settings.tsx
+---+++ b/frontend/app/(tabs)/settings.tsx
+---@@ -1,4 +1,4 @@
+----import React, { useState, useEffect } from 'react';
+---+import React, { useState, useEffect, useCallback } from 'react';
+--- import {
+---   View,
+---   Text,
+---@@ -12,29 +12,87 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 --- import { Ionicons } from '@expo/vector-icons';
+--- import AsyncStorage from '@react-native-async-storage/async-storage';
+--- import { useRouter } from 'expo-router';
+---+import axios from 'axios';
+--- import Colors from '../../constants/Colors';
 --- 
----+const Colors = {
----+  primary: '#3B82F6',
----+  secondary: '#6B7280',
----+  background: '#FFFFFF',
----+  border: '#E5E7EB',
----+};
+--- const { width } = Dimensions.get('window');
+--- 
+--- export default function ProfileScreen() {
+---   const router = useRouter();
+----  const [user, setUser] = useState<any>(null);
+---+  const [user, setUser] = useState(null);
+---   const [activeTab, setActiveTab] = useState<'overview' | 'insights'>('overview');
+--- 
+----  useEffect(() => {
+----    loadUserData();
+----  }, []);
+---+  const [stats, setStats] = useState({
+---+    totalRides: 0,
+---+    distance: 0,
+---+    timeSaved: 0,
+---+    avgRating: 0,
+---+    totalSaved: 0,
+---+    percentageChange: {
+---+      rides: 0,
+---+      distance: 0,
+---+      time: 0,
+---+      rating: 0,
+---+    }
+---+  });
+---+  const [savingsBreakdown, setSavingsBreakdown] = useState([]);
+---+  const [topRoutes, setTopRoutes] = useState([]);
+---+  const [loading, setLoading] = useState(true);
+--- 
+----  const loadUserData = async () => {
+---+  const loadUserData = useCallback(async () => {
+---     try {
+----      const userStr = await AsyncStorage.getItem('user');
+----      if (userStr) {
+----        setUser(JSON.parse(userStr));
+----      }
+---+      setLoading(true);
+---+      const token = await AsyncStorage.getItem('authToken');
+---+      const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+---+      
+---+      // Fetch user profile
+---+      const userResponse = await axios.get(`${API_URL}/api/v1/me`, {
+---+        headers: { Authorization: `Bearer ${token}` },
+---+      });
+---+      setUser(userResponse.data);
+---+      
+---+      // Fetch insights
+---+      const insightsResponse = await axios.get(`${API_URL}/api/v1/insights/summary`, {
+---+        headers: { Authorization: `Bearer ${token}` },
+---+      });
+---+      
+---+      const insightsData = insightsResponse.data;
+---+      setStats({
+---+        totalRides: insightsData.stats.totalRides || 0,
+---+        distance: insightsData.stats.totalDistance || 0,
+---+        timeSaved: insightsData.stats.timeSaved || 0,
+---+        avgRating: insightsData.stats.rating || 4.9,
+---+        totalSaved: insightsData.stats.totalSaved || 0,
+---+        percentageChange: {
+---+          rides: 8,
+---+          distance: 12,
+---+          time: 15,
+---+          rating: 0,
+---+        }
+---+      });
+---+      
+---+      setSavingsBreakdown(insightsData.savingsBreakdown || []);
+---+      setTopRoutes(insightsData.topRoutes || []);
+---+      
+---     } catch (error) {
+----      console.error('Load user error:', error);
+---+      console.error('Load user data error:', error);
+---+      // Set default values on error
+---+      setStats({
+---+        totalRides: 0,
+---+        distance: 0,
+---+        timeSaved: 0,
+---+        avgRating: 4.9,
+---+        totalSaved: 0,
+---+        percentageChange: { rides: 0, distance: 0, time: 0, rating: 0 }
+---+      });
+---+    } finally {
+---+      setLoading(false);
+---     }
+----  };
+---+  }, [setUser, setStats, setSavingsBreakdown, setTopRoutes, setLoading]);
 ---+
---- export default function TabLayout() {
+---+  useEffect(() => {
+---+    loadUserData();
+---+  }, [loadUserData]);
+--- 
+---   const handleLogout = async () => {
+---     Alert.alert(
+---@@ -64,56 +122,6 @@ export default function ProfileScreen() {
+---     );
+---   };
+--- 
+----  // Mock data - will be replaced with API calls later
+----  const stats = {
+----    totalRides: 24,
+----    distance: 186,
+----    timeSaved: 4.5,
+----    avgRating: 4.9,
+----    percentageChange: {
+----      rides: 8,
+----      distance: 12,
+----      time: 15,
+----      rating: 0,
+----    }
+----  };
+----
+----  const savingsBreakdown = [
+----    {
+----      id: 1,
+----      icon: 'flash',
+----      iconColor: '#F97316',
+----      iconBg: '#FED7AA',
+----      title: 'Surge Timing',
+----      subtitle: 'Avoided 8 peak surge periods',
+----      amount: 580,
+----    },
+----    {
+----      id: 2,
+----      icon: 'cloudy',
+----      iconColor: '#3B82F6',
+----      iconBg: '#DBEAFE',
+----      title: 'Weather Predictions',
+----      subtitle: 'Pre-booked before 3 rain events',
+----      amount: 120,
+----    },
+----    {
+----      id: 3,
+----      icon: 'stats-chart',
+----      iconColor: '#8B5CF6',
+----      iconBg: '#EDE9FE',
+----      title: 'Traffic Optimization',
+----      subtitle: 'Optimal route timing 12 times',
+----      amount: 150,
+----    },
+----  ];
+----
+----  const topRoutes = [
+----    { id: 1, from: 'Home', to: 'Office', rides: 12, saved: 180 },
+----    { id: 2, from: 'Office', to: 'Home', rides: 10, saved: 150 },
+----    { id: 3, from: 'Home', to: 'Phoenix Mall', rides: 4, saved: 80 },
+----  ];
+----
 ---   return (
----     <Tabs
----       screenOptions={{
----         headerShown: false,
-----        tabBarActiveTintColor: '#FF6B35',
-----        tabBarInactiveTintColor: '#6B7280',
----+        tabBarActiveTintColor: Colors.primary,
----+        tabBarInactiveTintColor: Colors.secondary,
----         tabBarStyle: {
-----          backgroundColor: '#FFFFFF',
----+          height: 70,
----+          paddingBottom: 10,
----+          paddingTop: 10,
----           borderTopWidth: 1,
-----          borderTopColor: '#E5E7EB',
-----          paddingBottom: 8,
-----          paddingTop: 8,
-----          height: 60,
----+          borderTopColor: Colors.border,
----+          backgroundColor: Colors.background,
----+        },
----+        tabBarLabelStyle: {
----+          fontSize: 12,
----+          fontWeight: '600',
----         },
----       }}
----     >
----@@ -22,38 +34,61 @@ export default function TabLayout() {
----         name="home"
----         options={{
----           title: 'Home',
-----          tabBarIcon: ({ color, size }) => (
-----            <Ionicons name="home" size={size} color={color} />
----+          tabBarIcon: ({ color, focused }) => (
----+            focused ? (
----+              <View style={styles.activeHomeIcon}>
----+                <Ionicons name="home" size={28} color="#FFFFFF" />
----+              </View>
----+            ) : (
----+              <Ionicons name="home-outline" size={24} color={color} />
----+            )
----           ),
----         }}
----       />
----       <Tabs.Screen
----         name="explorer"
----         options={{
-----          title: 'Explorer',
-----          tabBarIcon: ({ color, size }) => (
-----            <Ionicons name="search" size={size} color={color} />
----+          title: 'Schedule',
----+          tabBarIcon: ({ color, focused }) => (
----+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />
----           ),
----         }}
----       />
----       <Tabs.Screen
----         name="insights"
----         options={{
-----          title: 'Insights',
-----          tabBarIcon: ({ color, size }) => (
-----            <Ionicons name="bar-chart" size={size} color={color} />
----+          title: 'Activity',
----+          tabBarIcon: ({ color, focused }) => (
----+            <Ionicons name={focused ? 'map' : 'map-outline'} size={24} color={color} />
----           ),
----         }}
----       />
----       <Tabs.Screen
----         name="settings"
----         options={{
-----          title: 'Settings',
-----          tabBarIcon: ({ color, size }) => (
-----            <Ionicons name="settings" size={size} color={color} />
----+          title: 'Profile',
----+          tabBarIcon: ({ color, focused }) => (
----+            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
----           ),
----         }}
----       />
----     </Tabs>
----   );
---- }
+---     <SafeAreaView style={styles.container} edges={['top']}>
+---       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+---@@ -172,6 +180,13 @@ export default function ProfileScreen() {
+---           </TouchableOpacity>
+---         </View>
+--- 
+---+        {/* Loading State */}
+---+        {loading ? (
+---+          <View style={styles.loadingContainer}>
+---+            <Text style={styles.loadingText}>Loading your insights...</Text>
+---+          </View>
+---+        ) : (
+---+          <>
+---         {/* Content based on active tab */}
+---         {activeTab === 'overview' ? (
+---           <View style={styles.content}>
+---@@ -278,7 +293,7 @@ export default function ProfileScreen() {
+---             <View style={styles.totalSavedCard}>
+---               <Text style={styles.totalSavedLabel}>Total Saved this month</Text>
+---               <View style={styles.totalSavedRow}>
+----                <Text style={styles.totalSavedAmount}>₹850</Text>
+---+                <Text style={styles.totalSavedAmount}>₹{stats.totalSaved}</Text>
+---                 <View style={styles.totalSavedBadge}>
+---                   <Ionicons name="trending-up" size={14} color="#10B981" />
+---                   <Text style={styles.totalSavedPercentage}>+23%</Text>
+---@@ -305,6 +320,8 @@ export default function ProfileScreen() {
+---             </View>
+---           </View>
+---         )}
+---+        </>
+---+        )}
+--- 
+---         {/* Menu Items */}
+---         <View style={styles.menuSection}>
+---@@ -741,4 +758,17 @@ const styles = StyleSheet.create({
+---     fontWeight: '600',
+---     color: Colors.text.inverse,
+---   },
 ---+
----+const styles = StyleSheet.create({
----+  activeHomeIcon: {
----+    width: 60,
----+    height: 60,
----+    borderRadius: 30,
----+    backgroundColor: Colors.primary,
+---+  // Loading State
+---+  loadingContainer: {
+---+    flex: 1,
 ---+    justifyContent: 'center',
 ---+    alignItems: 'center',
----+    marginBottom: 10,
----+    shadowColor: '#000',
----+    shadowOffset: { width: 0, height: 4 },
----+    shadowOpacity: 0.3,
----+    shadowRadius: 8,
----+    elevation: 8,
+---+    paddingVertical: 40,
 ---+  },
----+});
+---+  loadingText: {
+---+    fontSize: 16,
+---+    color: Colors.text.secondary,
+---+    textAlign: 'center',
+---+  },
+--- });
 ---diff --git a/model.patch b/model.patch
----index 850a3a5..e69de29 100644
+---index 4c61741..367d005 100644
 ------ a/model.patch
 ---+++ b/model.patch
----@@ -1,544 +0,0 @@
-----diff --git a/frontend/app/auth/otp.tsx b/frontend/app/auth/otp.tsx
-----index 60abf4e..4f419f4 100644
-------- a/frontend/app/auth/otp.tsx
-----+++ b/frontend/app/auth/otp.tsx
-----@@ -13,76 +13,22 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
----- import { SafeAreaView } from 'react-native-safe-area-context';
----- import AsyncStorage from '@react-native-async-storage/async-storage';
----- import axios from 'axios';
------import { auth } from '../../firebaseConfig';
+---@@ -1,666 +0,0 @@
+----diff --git a/frontend/app/(tabs)/_layout.tsx b/frontend/app/(tabs)/_layout.tsx
+----index 5a00445..c5d7abb 100644
+------- a/frontend/app/(tabs)/_layout.tsx
+----+++ b/frontend/app/(tabs)/_layout.tsx
+----@@ -1,20 +1,32 @@
+---- import { Tabs } from 'expo-router';
+----+import { View, StyleSheet } from 'react-native';
+---- import { Ionicons } from '@expo/vector-icons';
 ---- 
----- const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8002';
----- 
----- export default function OTPScreen() {
-----   const router = useRouter();
------  const { phone, useFirebase } = useLocalSearchParams();
-----+  const { phone } = useLocalSearchParams();
-----   const [otp, setOtp] = useState('');
-----   const [loading, setLoading] = useState(false);
----- 
------  const handleVerifyFirebase = async () => {
------    try {
------      // Get the confirmation result from global storage
------      const confirmationResult = globalThis.firebaseConfirmationResult;
------      
------      if (!confirmationResult) {
------        throw new Error('Firebase confirmation not found. Please request OTP again.');
------      }
------
------      // Confirm the OTP code
------      const userCredential = await confirmationResult.confirm(otp);
------      console.log('Firebase OTP verified successfully');
------
------      // Get Firebase ID token
------      const idToken = await userCredential.user.getIdToken();
------      console.log('Got Firebase ID token');
------
------      // Send token to our backend
------      const response = await axios.post(`${API_URL}/api/v1/auth/firebase-login`, {
------        firebaseIdToken: idToken,
------      });
------
------      if (response.data.token) {
------        await AsyncStorage.setItem('authToken', response.data.token);
------        
------        // Check if user has a name (existing user) or needs registration
------        if (response.data.user.name) {
------          await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
------          // Check if locations are setup
------          const locationsSetup = await AsyncStorage.getItem('locationsSetup');
------          if (locationsSetup) {
------            router.replace('/(tabs)/home');
------          } else {
------            router.replace('/location-setup');
------          }
------        } else {
------          // New user - go to registration
------          router.replace({
------            pathname: '/auth/register',
------            params: { phone, token: response.data.token },
------          });
------        }
------      }
------    } catch (error) {
------      console.error('Firebase OTP verification error:', error);
------      
------      let errorMessage = 'Invalid or expired code. ';
------      if (error.code === 'auth/invalid-verification-code') {
------        errorMessage = 'Invalid verification code. Please try again.';
------      } else if (error.code === 'auth/code-expired') {
------        errorMessage = 'Verification code expired. Please request a new code.';
------      } else {
------        errorMessage += error.message || 'Please try again.';
------      }
------      
------      Alert.alert('Error', errorMessage);
-----+  const handleVerify = async () => {
-----+    if (otp.length !== 4) {
-----+      Alert.alert('Invalid OTP', 'Please enter the 4-digit OTP');
-----+      return;
-----     }
------  };
----- 
------  const handleVerifyMock = async () => {
-----+    setLoading(true);
-----     try {
-----       const response = await axios.post(`${API_URL}/api/v1/auth/verify-otp`, {
-----         phone,
-----@@ -111,23 +57,6 @@ export default function OTPScreen() {
-----     } catch (error) {
-----       console.error('Verify OTP error:', error);
-----       Alert.alert('Error', error.response?.data?.error || 'Invalid OTP. Please try again.');
------    }
------  };
------
------  const handleVerify = async () => {
------    if (otp.length !== 6 && otp.length !== 4) {
------      Alert.alert('Invalid OTP', 'Please enter the verification code');
------      return;
------    }
------
------    setLoading(true);
------    try {
------      // Use Firebase verification if useFirebase param is present
------      if (useFirebase === 'true') {
------        await handleVerifyFirebase();
------      } else {
------        await handleVerifyMock();
------      }
-----     } finally {
-----       setLoading(false);
-----     }
-----@@ -152,12 +81,12 @@ export default function OTPScreen() {
-----               style={styles.input}
-----               value={otp}
-----               onChangeText={setOtp}
------              placeholder="123456"
-----+              placeholder="1234"
-----               keyboardType="number-pad"
------              maxLength={6}
-----+              maxLength={4}
-----               autoFocus
-----             />
------            <Text style={styles.hint}>Mock OTP: 1234 | Firebase: 6-digit code</Text>
-----+            <Text style={styles.hint}>Enter OTP: 1234</Text>
-----           </View>
----- 
-----           <TouchableOpacity
+----+const Colors = {
+----+  primary: '#3B82F6',
+----+  secondary: '#6B7280',
+----+  background: '#FFFFFF',
+----+  border: '#E5E7EB',
+----+};
+----+
+---- export default function TabLayout() {
+----   return (
+----     <Tabs
+----       screenOptions={{
+----         headerShown: false,
+-----        tabBarActiveTintColor: '#FF6B35',
+-----        tabBarInactiveTintColor: '#6B7280',
+----+        tabBarActiveTintColor: Colors.primary,
+----+        tabBarInactiveTintColor: Colors.secondary,
+----         tabBarStyle: {
+-----          backgroundColor: '#FFFFFF',
+----+          height: 70,
+----+          paddingBottom: 10,
+----+          paddingTop: 10,
+----           borderTopWidth: 1,
+-----          borderTopColor: '#E5E7EB',
+-----          paddingBottom: 8,
+-----          paddingTop: 8,
+-----          height: 60,
+----+          borderTopColor: Colors.border,
+----+          backgroundColor: Colors.background,
+----+        },
+----+        tabBarLabelStyle: {
+----+          fontSize: 12,
+----+          fontWeight: '600',
+----         },
+----       }}
+----     >
+----@@ -22,38 +34,61 @@ export default function TabLayout() {
+----         name="home"
+----         options={{
+----           title: 'Home',
+-----          tabBarIcon: ({ color, size }) => (
+-----            <Ionicons name="home" size={size} color={color} />
+----+          tabBarIcon: ({ color, focused }) => (
+----+            focused ? (
+----+              <View style={styles.activeHomeIcon}>
+----+                <Ionicons name="home" size={28} color="#FFFFFF" />
+----+              </View>
+----+            ) : (
+----+              <Ionicons name="home-outline" size={24} color={color} />
+----+            )
+----           ),
+----         }}
+----       />
+----       <Tabs.Screen
+----         name="explorer"
+----         options={{
+-----          title: 'Explorer',
+-----          tabBarIcon: ({ color, size }) => (
+-----            <Ionicons name="search" size={size} color={color} />
+----+          title: 'Schedule',
+----+          tabBarIcon: ({ color, focused }) => (
+----+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />
+----           ),
+----         }}
+----       />
+----       <Tabs.Screen
+----         name="insights"
+----         options={{
+-----          title: 'Insights',
+-----          tabBarIcon: ({ color, size }) => (
+-----            <Ionicons name="bar-chart" size={size} color={color} />
+----+          title: 'Activity',
+----+          tabBarIcon: ({ color, focused }) => (
+----+            <Ionicons name={focused ? 'map' : 'map-outline'} size={24} color={color} />
+----           ),
+----         }}
+----       />
+----       <Tabs.Screen
+----         name="settings"
+----         options={{
+-----          title: 'Settings',
+-----          tabBarIcon: ({ color, size }) => (
+-----            <Ionicons name="settings" size={size} color={color} />
+----+          title: 'Profile',
+----+          tabBarIcon: ({ color, focused }) => (
+----+            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+----           ),
+----         }}
+----       />
+----     </Tabs>
+----   );
+---- }
+----+
+----+const styles = StyleSheet.create({
+----+  activeHomeIcon: {
+----+    width: 60,
+----+    height: 60,
+----+    borderRadius: 30,
+----+    backgroundColor: Colors.primary,
+----+    justifyContent: 'center',
+----+    alignItems: 'center',
+----+    marginBottom: 10,
+----+    shadowColor: '#000',
+----+    shadowOffset: { width: 0, height: 4 },
+----+    shadowOpacity: 0.3,
+----+    shadowRadius: 8,
+----+    elevation: 8,
+----+  },
+----+});
 ----diff --git a/model.patch b/model.patch
-----index 0065c5b..bfa0b05 100644
+----index 850a3a5..e69de29 100644
 ------- a/model.patch
 ----+++ b/model.patch
-----@@ -1,412 +0,0 @@
------diff --git a/frontend/firebaseConfig.ts b/frontend/firebaseConfig.ts
------index 743be3d..e061191 100644
--------- a/frontend/firebaseConfig.ts
------+++ b/frontend/firebaseConfig.ts
------@@ -1,5 +1,7 @@
------ import { initializeApp } from 'firebase/app';
-------import { getAuth } from 'firebase/auth';
------+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
------+import AsyncStorage from '@react-native-async-storage/async-storage';
------+import { Platform } from 'react-native';
+----@@ -1,544 +0,0 @@
+-----diff --git a/frontend/app/auth/otp.tsx b/frontend/app/auth/otp.tsx
+-----index 60abf4e..4f419f4 100644
+-------- a/frontend/app/auth/otp.tsx
+-----+++ b/frontend/app/auth/otp.tsx
+-----@@ -13,76 +13,22 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
+----- import { SafeAreaView } from 'react-native-safe-area-context';
+----- import AsyncStorage from '@react-native-async-storage/async-storage';
+----- import axios from 'axios';
+------import { auth } from '../../firebaseConfig';
 ----- 
------ // Firebase configuration
------ // Replace these with your actual Firebase project credentials
------@@ -16,7 +18,11 @@ const firebaseConfig = {
------ // Initialize Firebase
------ const app = initializeApp(firebaseConfig);
+----- const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8002';
 ----- 
-------// Initialize Firebase Auth
-------export const auth = getAuth(app);
------+// Initialize Firebase Auth with AsyncStorage persistence for React Native
------+export const auth = Platform.OS === 'web' 
------+  ? initializeAuth(app, {}) 
------+  : initializeAuth(app, {
------+      persistence: getReactNativePersistence(AsyncStorage)
------+    });
+----- export default function OTPScreen() {
+-----   const router = useRouter();
+------  const { phone, useFirebase } = useLocalSearchParams();
+-----+  const { phone } = useLocalSearchParams();
+-----   const [otp, setOtp] = useState('');
+-----   const [loading, setLoading] = useState(false);
 ----- 
------ export default app;
+------  const handleVerifyFirebase = async () => {
+------    try {
+------      // Get the confirmation result from global storage
+------      const confirmationResult = globalThis.firebaseConfirmationResult;
+------      
+------      if (!confirmationResult) {
+------        throw new Error('Firebase confirmation not found. Please request OTP again.');
+------      }
+------
+------      // Confirm the OTP code
+------      const userCredential = await confirmationResult.confirm(otp);
+------      console.log('Firebase OTP verified successfully');
+------
+------      // Get Firebase ID token
+------      const idToken = await userCredential.user.getIdToken();
+------      console.log('Got Firebase ID token');
+------
+------      // Send token to our backend
+------      const response = await axios.post(`${API_URL}/api/v1/auth/firebase-login`, {
+------        firebaseIdToken: idToken,
+------      });
+------
+------      if (response.data.token) {
+------        await AsyncStorage.setItem('authToken', response.data.token);
+------        
+------        // Check if user has a name (existing user) or needs registration
+------        if (response.data.user.name) {
+------          await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
+------          // Check if locations are setup
+------          const locationsSetup = await AsyncStorage.getItem('locationsSetup');
+------          if (locationsSetup) {
+------            router.replace('/(tabs)/home');
+------          } else {
+------            router.replace('/location-setup');
+------          }
+------        } else {
+------          // New user - go to registration
+------          router.replace({
+------            pathname: '/auth/register',
+------            params: { phone, token: response.data.token },
+------          });
+------        }
+------      }
+------    } catch (error) {
+------      console.error('Firebase OTP verification error:', error);
+------      
+------      let errorMessage = 'Invalid or expired code. ';
+------      if (error.code === 'auth/invalid-verification-code') {
+------        errorMessage = 'Invalid verification code. Please try again.';
+------      } else if (error.code === 'auth/code-expired') {
+------        errorMessage = 'Verification code expired. Please request a new code.';
+------      } else {
+------        errorMessage += error.message || 'Please try again.';
+------      }
+------      
+------      Alert.alert('Error', errorMessage);
+-----+  const handleVerify = async () => {
+-----+    if (otp.length !== 4) {
+-----+      Alert.alert('Invalid OTP', 'Please enter the 4-digit OTP');
+-----+      return;
+-----     }
+------  };
+----- 
+------  const handleVerifyMock = async () => {
+-----+    setLoading(true);
+-----     try {
+-----       const response = await axios.post(`${API_URL}/api/v1/auth/verify-otp`, {
+-----         phone,
+-----@@ -111,23 +57,6 @@ export default function OTPScreen() {
+-----     } catch (error) {
+-----       console.error('Verify OTP error:', error);
+-----       Alert.alert('Error', error.response?.data?.error || 'Invalid OTP. Please try again.');
+------    }
+------  };
+------
+------  const handleVerify = async () => {
+------    if (otp.length !== 6 && otp.length !== 4) {
+------      Alert.alert('Invalid OTP', 'Please enter the verification code');
+------      return;
+------    }
+------
+------    setLoading(true);
+------    try {
+------      // Use Firebase verification if useFirebase param is present
+------      if (useFirebase === 'true') {
+------        await handleVerifyFirebase();
+------      } else {
+------        await handleVerifyMock();
+------      }
+-----     } finally {
+-----       setLoading(false);
+-----     }
+-----@@ -152,12 +81,12 @@ export default function OTPScreen() {
+-----               style={styles.input}
+-----               value={otp}
+-----               onChangeText={setOtp}
+------              placeholder="123456"
+-----+              placeholder="1234"
+-----               keyboardType="number-pad"
+------              maxLength={6}
+-----+              maxLength={4}
+-----               autoFocus
+-----             />
+------            <Text style={styles.hint}>Mock OTP: 1234 | Firebase: 6-digit code</Text>
+-----+            <Text style={styles.hint}>Enter OTP: 1234</Text>
+-----           </View>
+----- 
+-----           <TouchableOpacity
 -----diff --git a/model.patch b/model.patch
------index 126694f..e69de29 100644
+-----index 0065c5b..bfa0b05 100644
 -------- a/model.patch
 -----+++ b/model.patch
------@@ -1,380 +0,0 @@
-------diff --git a/frontend/app/auth/otp.tsx b/frontend/app/auth/otp.tsx
-------index 8149a9a..4287e8a 100644
---------- a/frontend/app/auth/otp.tsx
-------+++ b/frontend/app/auth/otp.tsx
-------@@ -13,22 +13,76 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
------- import { SafeAreaView } from 'react-native-safe-area-context';
------- import AsyncStorage from '@react-native-async-storage/async-storage';
------- import axios from 'axios';
-------+import { auth } from '../../firebaseConfig';
+-----@@ -1,412 +0,0 @@
+------diff --git a/frontend/firebaseConfig.ts b/frontend/firebaseConfig.ts
+------index 743be3d..e061191 100644
+--------- a/frontend/firebaseConfig.ts
+------+++ b/frontend/firebaseConfig.ts
+------@@ -1,5 +1,7 @@
+------ import { initializeApp } from 'firebase/app';
+-------import { getAuth } from 'firebase/auth';
+------+import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
+------+import AsyncStorage from '@react-native-async-storage/async-storage';
+------+import { Platform } from 'react-native';
 ------ 
------- const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8001';
+------ // Firebase configuration
+------ // Replace these with your actual Firebase project credentials
+------@@ -16,7 +18,11 @@ const firebaseConfig = {
+------ // Initialize Firebase
+------ const app = initializeApp(firebaseConfig);
 ------ 
------- export default function OTPScreen() {
-------   const router = useRouter();
--------  const { phone } = useLocalSearchParams();
-------+  const { phone, useFirebase } = useLocalSearchParams();
-------   const [otp, setOtp] = useState('');
-------   const [loading, setLoading] = useState(false);
+-------// Initialize Firebase Auth
+-------export const auth = getAuth(app);
+------+// Initialize Firebase Auth with AsyncStorage persistence for React Native
+------+export const auth = Platform.OS === 'web' 
+------+  ? initializeAuth(app, {}) 
+------+  : initializeAuth(app, {
+------+      persistence: getReactNativePersistence(AsyncStorage)
+------+    });
 ------ 
--------  const handleVerify = async () => {
--------    if (otp.length !== 4) {
--------      Alert.alert('Invalid OTP', 'Please enter the 4-digit OTP');
--------      return;
-------+  const handleVerifyFirebase = async () => {
-------+    try {
-------+      // Get the confirmation result from global storage
-------+      const confirmationResult = globalThis.firebaseConfirmationResult;
-------+      
-------+      if (!confirmationResult) {
-------+        throw new Error('Firebase confirmation not found. Please request OTP again.');
-------+      }
-------+
-------+      // Confirm the OTP code
-------+      const userCredential = await confirmationResult.confirm(otp);
-------+      console.log('Firebase OTP verified successfully');
-------+
-------+      // Get Firebase ID token
-------+      const idToken = await userCredential.user.getIdToken();
-------+      console.log('Got Firebase ID token');
-------+
-------+      // Send token to our backend
-------+      const response = await axios.post(`${API_URL}/api/v1/auth/firebase-login`, {
-------+        firebaseIdToken: idToken,
-------+      });
-------+
-------+      if (response.data.token) {
-------+        await AsyncStorage.setItem('authToken', response.data.token);
-------+        
-------+        // Check if user has a name (existing user) or needs registration
-------+        if (response.data.user.name) {
-------+          await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
-------+          // Check if locations are setup
-------+          const locationsSetup = await AsyncStorage.getItem('locationsSetup');
-------+          if (locationsSetup) {
-------+            router.replace('/(tabs)/home');
-------+          } else {
-------+            router.replace('/location-setup');
-------+          }
-------+        } else {
-------+          // New user - go to registration
-------+          router.replace({
-------+            pathname: '/auth/register',
-------+            params: { phone, token: response.data.token },
-------+          });
-------+        }
-------+      }
-------+    } catch (error) {
-------+      console.error('Firebase OTP verification error:', error);
-------+      
-------+      let errorMessage = 'Invalid or expired code. ';
-------+      if (error.code === 'auth/invalid-verification-code') {
-------+        errorMessage = 'Invalid verification code. Please try again.';
-------+      } else if (error.code === 'auth/code-expired') {
-------+        errorMessage = 'Verification code expired. Please request a new code.';
-------+      } else {
-------+        errorMessage += error.message || 'Please try again.';
-------+      }
-------+      
-------+      Alert.alert('Error', errorMessage);
-------     }
-------+  };
------- 
--------    setLoading(true);
-------+  const handleVerifyMock = async () => {
-------     try {
-------       const response = await axios.post(`${API_URL}/api/v1/auth/verify-otp`, {
-------         phone,
-------@@ -41,7 +95,6 @@ export default function OTPScreen() {
-------         // Check if user has a name (existing user) or needs registration
-------         if (response.data.user.name) {
-------           await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
--------          // Check if locations are setup
-------           const locationsSetup = await AsyncStorage.getItem('locationsSetup');
-------           if (locationsSetup) {
-------             router.replace('/(tabs)/home');
-------@@ -49,15 +102,32 @@ export default function OTPScreen() {
-------             router.replace('/location-setup');
-------           }
-------         } else {
--------          // New user - go to registration
-------           router.replace({
-------             pathname: '/auth/register',
-------             params: { phone, token: response.data.token },
--------          });        }
-------+          });
-------+        }
-------       }
--------    } catch (error: any) {
-------+    } catch (error) {
-------       console.error('Verify OTP error:', error);
-------       Alert.alert('Error', error.response?.data?.error || 'Invalid OTP. Please try again.');
-------+    }
-------+  };
-------+
-------+  const handleVerify = async () => {
-------+    if (otp.length !== 6 && otp.length !== 4) {
-------+      Alert.alert('Invalid OTP', 'Please enter the verification code');
-------+      return;
-------+    }
-------+
-------+    setLoading(true);
-------+    try {
-------+      // Use Firebase verification if useFirebase param is present
-------+      if (useFirebase === 'true') {
-------+        await handleVerifyFirebase();
-------+      } else {
-------+        await handleVerifyMock();
-------+      }
-------     } finally {
-------       setLoading(false);
-------     }
-------@@ -82,12 +152,12 @@ export default function OTPScreen() {
-------               style={styles.input}
-------               value={otp}
-------               onChangeText={setOtp}
--------              placeholder="1234"
-------+              placeholder="123456"
-------               keyboardType="number-pad"
--------              maxLength={4}
-------+              maxLength={6}
-------               autoFocus
-------             />
--------            <Text style={styles.hint}>Mock OTP: 1234</Text>
-------+            <Text style={styles.hint}>Mock OTP: 1234 | Firebase: 6-digit code</Text>
-------           </View>
------- 
-------           <TouchableOpacity
+------ export default app;
 ------diff --git a/model.patch b/model.patch
-------index f82cd49..74796ea 100644
+------index 126694f..e69de29 100644
 --------- a/model.patch
 ------+++ b/model.patch
-------@@ -1,228 +0,0 @@
--------diff --git a/frontend/app/(tabs)/home.tsx b/frontend/app/(tabs)/home.tsx
--------index b94a41c..ff810b4 100644
----------- a/frontend/app/(tabs)/home.tsx
--------+++ b/frontend/app/(tabs)/home.tsx
--------@@ -221,6 +221,13 @@ export default function HomeScreen() {
--------           />
--------         }
--------       >
--------+        {error && (
--------+          <View style={styles.errorBanner}>
--------+            <Ionicons name="warning" size={20} color="#EF4444" />
--------+            <Text style={styles.errorText}>{error}</Text>
--------+          </View>
--------+        )}
+------@@ -1,380 +0,0 @@
+-------diff --git a/frontend/app/auth/otp.tsx b/frontend/app/auth/otp.tsx
+-------index 8149a9a..4287e8a 100644
+---------- a/frontend/app/auth/otp.tsx
+-------+++ b/frontend/app/auth/otp.tsx
+-------@@ -13,22 +13,76 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
+------- import { SafeAreaView } from 'react-native-safe-area-context';
+------- import AsyncStorage from '@react-native-async-storage/async-storage';
+------- import axios from 'axios';
+-------+import { auth } from '../../firebaseConfig';
+------- 
+------- const API_URL = Platform.OS === 'web' ? '' : 'http://localhost:8001';
+------- 
+------- export default function OTPScreen() {
+-------   const router = useRouter();
+--------  const { phone } = useLocalSearchParams();
+-------+  const { phone, useFirebase } = useLocalSearchParams();
+-------   const [otp, setOtp] = useState('');
+-------   const [loading, setLoading] = useState(false);
+------- 
+--------  const handleVerify = async () => {
+--------    if (otp.length !== 4) {
+--------      Alert.alert('Invalid OTP', 'Please enter the 4-digit OTP');
+--------      return;
+-------+  const handleVerifyFirebase = async () => {
+-------+    try {
+-------+      // Get the confirmation result from global storage
+-------+      const confirmationResult = globalThis.firebaseConfirmationResult;
+-------+      
+-------+      if (!confirmationResult) {
+-------+        throw new Error('Firebase confirmation not found. Please request OTP again.');
+-------+      }
 -------+
--------         <View style={styles.header}>
--------           <View>
--------             <Text style={styles.greeting}>
--------@@ -462,4 +469,44 @@ const styles = StyleSheet.create({
--------     color: '#FFFFFF',
--------     opacity: 0.9,
--------   },
--------+  errorBanner: {
--------+    backgroundColor: '#FEF2F2',
--------+    borderColor: '#FECACA',
--------+    borderWidth: 1,
--------+    borderRadius: 12,
--------+    padding: 16,
--------+    marginHorizontal: 24,
--------+    marginBottom: 16,
--------+    flexDirection: 'row',
--------+    alignItems: 'center',
--------+    gap: 12,
--------+  },
--------+  errorText: {
--------+    flex: 1,
--------+    fontSize: 14,
--------+    color: '#DC2626',
--------+    fontWeight: '500',
--------+  },
--------+  emptyContainer: {
--------+    flex: 1,
--------+    justifyContent: 'center',
--------+    alignItems: 'center',
--------+    paddingHorizontal: 32,
--------+    paddingVertical: 64,
--------+  },
--------+  emptyTitle: {
--------+    fontSize: 24,
--------+    fontWeight: 'bold',
--------+    color: '#1F2937',
--------+    marginTop: 24,
--------+    marginBottom: 12,
--------+    textAlign: 'center',
--------+  },
--------+  emptyText: {
--------+    fontSize: 16,
--------+    color: '#6B7280',
--------+    textAlign: 'center',
--------+    lineHeight: 24,
--------+    marginBottom: 32,
--------+  },
-------- });
+-------+      // Confirm the OTP code
+-------+      const userCredential = await confirmationResult.confirm(otp);
+-------+      console.log('Firebase OTP verified successfully');
+-------+
+-------+      // Get Firebase ID token
+-------+      const idToken = await userCredential.user.getIdToken();
+-------+      console.log('Got Firebase ID token');
+-------+
+-------+      // Send token to our backend
+-------+      const response = await axios.post(`${API_URL}/api/v1/auth/firebase-login`, {
+-------+        firebaseIdToken: idToken,
+-------+      });
+-------+
+-------+      if (response.data.token) {
+-------+        await AsyncStorage.setItem('authToken', response.data.token);
+-------+        
+-------+        // Check if user has a name (existing user) or needs registration
+-------+        if (response.data.user.name) {
+-------+          await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
+-------+          // Check if locations are setup
+-------+          const locationsSetup = await AsyncStorage.getItem('locationsSetup');
+-------+          if (locationsSetup) {
+-------+            router.replace('/(tabs)/home');
+-------+          } else {
+-------+            router.replace('/location-setup');
+-------+          }
+-------+        } else {
+-------+          // New user - go to registration
+-------+          router.replace({
+-------+            pathname: '/auth/register',
+-------+            params: { phone, token: response.data.token },
+-------+          });
+-------+        }
+-------+      }
+-------+    } catch (error) {
+-------+      console.error('Firebase OTP verification error:', error);
+-------+      
+-------+      let errorMessage = 'Invalid or expired code. ';
+-------+      if (error.code === 'auth/invalid-verification-code') {
+-------+        errorMessage = 'Invalid verification code. Please try again.';
+-------+      } else if (error.code === 'auth/code-expired') {
+-------+        errorMessage = 'Verification code expired. Please request a new code.';
+-------+      } else {
+-------+        errorMessage += error.message || 'Please try again.';
+-------+      }
+-------+      
+-------+      Alert.alert('Error', errorMessage);
+-------     }
+-------+  };
+------- 
+--------    setLoading(true);
+-------+  const handleVerifyMock = async () => {
+-------     try {
+-------       const response = await axios.post(`${API_URL}/api/v1/auth/verify-otp`, {
+-------         phone,
+-------@@ -41,7 +95,6 @@ export default function OTPScreen() {
+-------         // Check if user has a name (existing user) or needs registration
+-------         if (response.data.user.name) {
+-------           await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
+--------          // Check if locations are setup
+-------           const locationsSetup = await AsyncStorage.getItem('locationsSetup');
+-------           if (locationsSetup) {
+-------             router.replace('/(tabs)/home');
+-------@@ -49,15 +102,32 @@ export default function OTPScreen() {
+-------             router.replace('/location-setup');
+-------           }
+-------         } else {
+--------          // New user - go to registration
+-------           router.replace({
+-------             pathname: '/auth/register',
+-------             params: { phone, token: response.data.token },
+--------          });        }
+-------+          });
+-------+        }
+-------       }
+--------    } catch (error: any) {
+-------+    } catch (error) {
+-------       console.error('Verify OTP error:', error);
+-------       Alert.alert('Error', error.response?.data?.error || 'Invalid OTP. Please try again.');
+-------+    }
+-------+  };
+-------+
+-------+  const handleVerify = async () => {
+-------+    if (otp.length !== 6 && otp.length !== 4) {
+-------+      Alert.alert('Invalid OTP', 'Please enter the verification code');
+-------+      return;
+-------+    }
+-------+
+-------+    setLoading(true);
+-------+    try {
+-------+      // Use Firebase verification if useFirebase param is present
+-------+      if (useFirebase === 'true') {
+-------+        await handleVerifyFirebase();
+-------+      } else {
+-------+        await handleVerifyMock();
+-------+      }
+-------     } finally {
+-------       setLoading(false);
+-------     }
+-------@@ -82,12 +152,12 @@ export default function OTPScreen() {
+-------               style={styles.input}
+-------               value={otp}
+-------               onChangeText={setOtp}
+--------              placeholder="1234"
+-------+              placeholder="123456"
+-------               keyboardType="number-pad"
+--------              maxLength={4}
+-------+              maxLength={6}
+-------               autoFocus
+-------             />
+--------            <Text style={styles.hint}>Mock OTP: 1234</Text>
+-------+            <Text style={styles.hint}>Mock OTP: 1234 | Firebase: 6-digit code</Text>
+-------           </View>
+------- 
+-------           <TouchableOpacity
 -------diff --git a/model.patch b/model.patch
--------index 432dede..e69de29 100644
+-------index f82cd49..74796ea 100644
 ---------- a/model.patch
 -------+++ b/model.patch
--------@@ -1,160 +0,0 @@
+-------@@ -1,228 +0,0 @@
+--------diff --git a/frontend/app/(tabs)/home.tsx b/frontend/app/(tabs)/home.tsx
+--------index b94a41c..ff810b4 100644
+----------- a/frontend/app/(tabs)/home.tsx
+--------+++ b/frontend/app/(tabs)/home.tsx
+--------@@ -221,6 +221,13 @@ export default function HomeScreen() {
+--------           />
+--------         }
+--------       >
+--------+        {error && (
+--------+          <View style={styles.errorBanner}>
+--------+            <Ionicons name="warning" size={20} color="#EF4444" />
+--------+            <Text style={styles.errorText}>{error}</Text>
+--------+          </View>
+--------+        )}
+--------+
+--------         <View style={styles.header}>
+--------           <View>
+--------             <Text style={styles.greeting}>
+--------@@ -462,4 +469,44 @@ const styles = StyleSheet.create({
+--------     color: '#FFFFFF',
+--------     opacity: 0.9,
+--------   },
+--------+  errorBanner: {
+--------+    backgroundColor: '#FEF2F2',
+--------+    borderColor: '#FECACA',
+--------+    borderWidth: 1,
+--------+    borderRadius: 12,
+--------+    padding: 16,
+--------+    marginHorizontal: 24,
+--------+    marginBottom: 16,
+--------+    flexDirection: 'row',
+--------+    alignItems: 'center',
+--------+    gap: 12,
+--------+  },
+--------+  errorText: {
+--------+    flex: 1,
+--------+    fontSize: 14,
+--------+    color: '#DC2626',
+--------+    fontWeight: '500',
+--------+  },
+--------+  emptyContainer: {
+--------+    flex: 1,
+--------+    justifyContent: 'center',
+--------+    alignItems: 'center',
+--------+    paddingHorizontal: 32,
+--------+    paddingVertical: 64,
+--------+  },
+--------+  emptyTitle: {
+--------+    fontSize: 24,
+--------+    fontWeight: 'bold',
+--------+    color: '#1F2937',
+--------+    marginTop: 24,
+--------+    marginBottom: 12,
+--------+    textAlign: 'center',
+--------+  },
+--------+  emptyText: {
+--------+    fontSize: 16,
+--------+    color: '#6B7280',
+--------+    textAlign: 'center',
+--------+    lineHeight: 24,
+--------+    marginBottom: 32,
+--------+  },
+-------- });
 --------diff --git a/model.patch b/model.patch
---------index 8a88903..e69de29 100644
+--------index 432dede..e69de29 100644
 ----------- a/model.patch
 --------+++ b/model.patch
---------@@ -1,155 +0,0 @@
----------diff --git a/test_result.md b/test_result.md
----------index 187cba4..6975ece 100644
------------- a/test_result.md
----------+++ b/test_result.md
----------@@ -100,4 +100,147 @@
---------- 
---------- #====================================================================================================
---------- # Testing Data - Main Agent and testing sub agent both should log testing data below this section
-----------#====================================================================================================
----------\ No newline at end of file
----------+#====================================================================================================
----------+
----------+user_problem_statement: "Test the HailO Node.js backend API running on http://localhost:8002 with comprehensive API flow testing including authentication, commute search, surge radar, and insights functionality."
----------+
----------+backend:
----------+  - task: "Health Check API"
----------+    implemented: true
----------+    working: true
----------+    file: "/app/server/src/index.js"
----------+    stuck_count: 0
----------+    priority: "high"
----------+    needs_retesting: false
----------+    status_history:
----------+      - working: true
----------+        agent: "testing"
----------+        comment: "✅ GET /api/v1/health returns status OK and uberMode MOCK as expected. Server is running correctly on port 8002."
----------+
----------+  - task: "Authentication Flow (OTP Request/Verify)"
----------+    implemented: true
----------+    working: true
----------+    file: "/app/server/src/routes/auth.js"
----------+    stuck_count: 0
----------+    priority: "high"
----------+    needs_retesting: false
----------+    status_history:
----------+      - working: true
----------+        agent: "testing"
----------+        comment: "✅ POST /api/v1/auth/request-otp and POST /api/v1/auth/verify-otp working correctly. Mock OTP '1234' is returned and verification generates valid JWT token with user object."
----------+
----------+  - task: "User Profile API"
----------+    implemented: true
----------+    working: true
----------+    file: "/app/server/src/routes/auth.js"
----------+    stuck_count: 0
----------+    priority: "high"
----------+    needs_retesting: false
----------+    status_history:
----------+      - working: true
----------+        agent: "testing"
----------+        comment: "✅ GET /api/v1/me with Bearer token returns user profile with phone number and user details correctly."
----------+
----------+  - task: "Commute Search API"
----------+    implemented: true
----------+    working: true
----------+    file: "/app/server/src/routes/commute.js"
----------+    stuck_count: 0
----------+    priority: "high"
----------+    needs_retesting: false
----------+    status_history:
----------+      - working: true
----------+        agent: "testing"
----------+        comment: "✅ POST /api/v1/commute/search with EXPLORER mode works correctly. Returns estimate with price, ETA, deep link URL, and isMock: true. Deep link format is valid and contains correct Mumbai coordinates."
----------+
----------+  - task: "Surge Radar API"
----------+    implemented: true
----------+    working: true
----------+    file: "/app/server/src/routes/commute.js"
----------+    stuck_count: 0
----------+    priority: "high"
----------+    needs_retesting: false
----------+    status_history:
----------+      - working: true
----------+        agent: "testing"
----------+        comment: "✅ POST /api/v1/commute/surge-radar returns buckets array with 7 time slots, bestBucket with lowest price, and potentialSaving calculation. Mock Mumbai pricing works correctly."
----------+
----------+  - task: "Insights Summary API"
----------+    implemented: true
----------+    working: true
----------+    file: "/app/server/src/routes/insights.js"
----------+    stuck_count: 0
----------+    priority: "high"
----------+    needs_retesting: false
----------+    status_history:
----------+      - working: true
----------+        agent: "testing"
----------+        comment: "✅ GET /api/v1/insights/summary?period=7d returns totalTrips, totalSpend, weekScore and other required metrics correctly."
----------+
----------+  - task: "Insights Export API"
----------+    implemented: true
----------+    working: true
----------+    file: "/app/server/src/routes/insights.js"
----------+    stuck_count: 0
----------+    priority: "high"
----------+    needs_retesting: false
----------+    status_history:
----------+      - working: true
----------+        agent: "testing"
----------+        comment: "✅ GET /api/v1/insights/export?period=30d returns CSV content with proper headers and content-type. Export functionality working correctly."
----------+
----------+  - task: "JWT Authentication Protection"
----------+    implemented: true
----------+    working: true
----------+    file: "/app/server/src/middleware/auth.js"
----------+    stuck_count: 0
----------+    priority: "high"
----------+    needs_retesting: false
----------+    status_history:
----------+      - working: true
----------+        agent: "testing"
----------+        comment: "✅ All protected routes properly return 401 when Bearer token is missing. Auth middleware working correctly."
----------+
----------+  - task: "Mock Uber Service Integration"
----------+    implemented: true
----------+    working: true
----------+    file: "/app/server/src/services/uberService.js"
----------+    stuck_count: 0
----------+    priority: "high"
----------+    needs_retesting: false
----------+    status_history:
----------+      - working: true
----------+        agent: "testing"
----------+        comment: "✅ Mock Uber service generates realistic Mumbai pricing, surge patterns, and deep links. All mock data is properly flagged with isMock: true."
----------+
----------+  - task: "Database Integration (PostgreSQL + Prisma)"
----------+    implemented: true
----------+    working: true
----------+    file: "/app/server/prisma/schema.prisma"
----------+    stuck_count: 0
----------+    priority: "medium"
----------+    needs_retesting: false
----------+    status_history:
----------+      - working: true
----------+        agent: "testing"
----------+        comment: "✅ Database operations working correctly. User creation, commute logging, and data retrieval all functioning properly through Prisma ORM."
----------+
----------+frontend:
----------+  # Frontend testing not performed as per instructions
----------+
----------+metadata:
----------+  created_by: "testing_agent"
----------+  version: "1.0"
----------+  test_sequence: 1
----------+  run_ui: false
----------+
----------+test_plan:
----------+  current_focus:
----------+    - "All backend API testing completed successfully"
----------+  stuck_tasks: []
----------+  test_all: true
----------+  test_priority: "high_first"
----------+
----------+agent_communication:
----------+  - agent: "testing"
----------+    message: "Comprehensive backend API testing completed successfully. All 9 test cases passed including health check, authentication flow, commute search, surge radar, insights APIs, and security protection. The HailO Node.js backend is fully functional with proper mock Uber integration, JWT authentication, and PostgreSQL database operations. Server running correctly on port 8002 with UBER_MOCK=true configuration."
----------\ No newline at end of file
+--------@@ -1,160 +0,0 @@
+---------diff --git a/model.patch b/model.patch
+---------index 8a88903..e69de29 100644
+------------ a/model.patch
+---------+++ b/model.patch
+---------@@ -1,155 +0,0 @@
+----------diff --git a/test_result.md b/test_result.md
+----------index 187cba4..6975ece 100644
+------------- a/test_result.md
+----------+++ b/test_result.md
+----------@@ -100,4 +100,147 @@
+---------- 
+---------- #====================================================================================================
+---------- # Testing Data - Main Agent and testing sub agent both should log testing data below this section
+-----------#====================================================================================================
+----------\ No newline at end of file
+----------+#====================================================================================================
+----------+
+----------+user_problem_statement: "Test the HailO Node.js backend API running on http://localhost:8002 with comprehensive API flow testing including authentication, commute search, surge radar, and insights functionality."
+----------+
+----------+backend:
+----------+  - task: "Health Check API"
+----------+    implemented: true
+----------+    working: true
+----------+    file: "/app/server/src/index.js"
+----------+    stuck_count: 0
+----------+    priority: "high"
+----------+    needs_retesting: false
+----------+    status_history:
+----------+      - working: true
+----------+        agent: "testing"
+----------+        comment: "✅ GET /api/v1/health returns status OK and uberMode MOCK as expected. Server is running correctly on port 8002."
+----------+
+----------+  - task: "Authentication Flow (OTP Request/Verify)"
+----------+    implemented: true
+----------+    working: true
+----------+    file: "/app/server/src/routes/auth.js"
+----------+    stuck_count: 0
+----------+    priority: "high"
+----------+    needs_retesting: false
+----------+    status_history:
+----------+      - working: true
+----------+        agent: "testing"
+----------+        comment: "✅ POST /api/v1/auth/request-otp and POST /api/v1/auth/verify-otp working correctly. Mock OTP '1234' is returned and verification generates valid JWT token with user object."
+----------+
+----------+  - task: "User Profile API"
+----------+    implemented: true
+----------+    working: true
+----------+    file: "/app/server/src/routes/auth.js"
+----------+    stuck_count: 0
+----------+    priority: "high"
+----------+    needs_retesting: false
+----------+    status_history:
+----------+      - working: true
+----------+        agent: "testing"
+----------+        comment: "✅ GET /api/v1/me with Bearer token returns user profile with phone number and user details correctly."
+----------+
+----------+  - task: "Commute Search API"
+----------+    implemented: true
+----------+    working: true
+----------+    file: "/app/server/src/routes/commute.js"
+----------+    stuck_count: 0
+----------+    priority: "high"
+----------+    needs_retesting: false
+----------+    status_history:
+----------+      - working: true
+----------+        agent: "testing"
+----------+        comment: "✅ POST /api/v1/commute/search with EXPLORER mode works correctly. Returns estimate with price, ETA, deep link URL, and isMock: true. Deep link format is valid and contains correct Mumbai coordinates."
+----------+
+----------+  - task: "Surge Radar API"
+----------+    implemented: true
+----------+    working: true
+----------+    file: "/app/server/src/routes/commute.js"
+----------+    stuck_count: 0
+----------+    priority: "high"
+----------+    needs_retesting: false
+----------+    status_history:
+----------+      - working: true
+----------+        agent: "testing"
+----------+        comment: "✅ POST /api/v1/commute/surge-radar returns buckets array with 7 time slots, bestBucket with lowest price, and potentialSaving calculation. Mock Mumbai pricing works correctly."
+----------+
+----------+  - task: "Insights Summary API"
+----------+    implemented: true
+----------+    working: true
+----------+    file: "/app/server/src/routes/insights.js"
+----------+    stuck_count: 0
+----------+    priority: "high"
+----------+    needs_retesting: false
+----------+    status_history:
+----------+      - working: true
+----------+        agent: "testing"
+----------+        comment: "✅ GET /api/v1/insights/summary?period=7d returns totalTrips, totalSpend, weekScore and other required metrics correctly."
+----------+
+----------+  - task: "Insights Export API"
+----------+    implemented: true
+----------+    working: true
+----------+    file: "/app/server/src/routes/insights.js"
+----------+    stuck_count: 0
+----------+    priority: "high"
+----------+    needs_retesting: false
+----------+    status_history:
+----------+      - working: true
+----------+        agent: "testing"
+----------+        comment: "✅ GET /api/v1/insights/export?period=30d returns CSV content with proper headers and content-type. Export functionality working correctly."
+----------+
+----------+  - task: "JWT Authentication Protection"
+----------+    implemented: true
+----------+    working: true
+----------+    file: "/app/server/src/middleware/auth.js"
+----------+    stuck_count: 0
+----------+    priority: "high"
+----------+    needs_retesting: false
+----------+    status_history:
+----------+      - working: true
+----------+        agent: "testing"
+----------+        comment: "✅ All protected routes properly return 401 when Bearer token is missing. Auth middleware working correctly."
+----------+
+----------+  - task: "Mock Uber Service Integration"
+----------+    implemented: true
+----------+    working: true
+----------+    file: "/app/server/src/services/uberService.js"
+----------+    stuck_count: 0
+----------+    priority: "high"
+----------+    needs_retesting: false
+----------+    status_history:
+----------+      - working: true
+----------+        agent: "testing"
+----------+        comment: "✅ Mock Uber service generates realistic Mumbai pricing, surge patterns, and deep links. All mock data is properly flagged with isMock: true."
+----------+
+----------+  - task: "Database Integration (PostgreSQL + Prisma)"
+----------+    implemented: true
+----------+    working: true
+----------+    file: "/app/server/prisma/schema.prisma"
+----------+    stuck_count: 0
+----------+    priority: "medium"
+----------+    needs_retesting: false
+----------+    status_history:
+----------+      - working: true
+----------+        agent: "testing"
+----------+        comment: "✅ Database operations working correctly. User creation, commute logging, and data retrieval all functioning properly through Prisma ORM."
+----------+
+----------+frontend:
+----------+  # Frontend testing not performed as per instructions
+----------+
+----------+metadata:
+----------+  created_by: "testing_agent"
+----------+  version: "1.0"
+----------+  test_sequence: 1
+----------+  run_ui: false
+----------+
+----------+test_plan:
+----------+  current_focus:
+----------+    - "All backend API testing completed successfully"
+----------+  stuck_tasks: []
+----------+  test_all: true
+----------+  test_priority: "high_first"
+----------+
+----------+agent_communication:
+----------+  - agent: "testing"
+----------+    message: "Comprehensive backend API testing completed successfully. All 9 test cases passed including health check, authentication flow, commute search, surge radar, insights APIs, and security protection. The HailO Node.js backend is fully functional with proper mock Uber integration, JWT authentication, and PostgreSQL database operations. Server running correctly on port 8002 with UBER_MOCK=true configuration."
+----------\ No newline at end of file
+-diff --git a/test_result.md b/test_result.md
+-index 6975ece..05281fe 100644
+---- a/test_result.md
+-+++ b/test_result.md
+-@@ -225,6 +225,18 @@ backend:
+-         agent: "testing"
+-         comment: "✅ Database operations working correctly. User creation, commute logging, and data retrieval all functioning properly through Prisma ORM."
+- 
+-+  - task: "Authentication API Endpoints (Review Request)"
+-+    implemented: true
+-+    working: true
+-+    file: "/app/server/src/routes/auth.js"
+-+    stuck_count: 0
+-+    priority: "high"
+-+    needs_retesting: false
+-+    status_history:
+-+      - working: true
+-+        agent: "testing"
+-+        comment: "✅ All authentication endpoints tested through FastAPI proxy (localhost:8001). POST /api/v1/auth/request-otp returns mockOtp '1234', POST /api/v1/auth/verify-otp returns valid JWT token, GET /api/v1/locations works with auth, POST /api/v1/locations creates location successfully, and auth protection works correctly. All 6/6 tests passed."
+-+
+- frontend:
+-   # Frontend testing not performed as per instructions
+- 
+-@@ -243,4 +255,6 @@ test_plan:
+- 
+- agent_communication:
+-   - agent: "testing"
+--    message: "Comprehensive backend API testing completed successfully. All 9 test cases passed including health check, authentication flow, commute search, surge radar, insights APIs, and security protection. The HailO Node.js backend is fully functional with proper mock Uber integration, JWT authentication, and PostgreSQL database operations. Server running correctly on port 8002 with UBER_MOCK=true configuration."
+-\ No newline at end of file
+-+    message: "Comprehensive backend API testing completed successfully. All 9 test cases passed including health check, authentication flow, commute search, surge radar, insights APIs, and security protection. The HailO Node.js backend is fully functional with proper mock Uber integration, JWT authentication, and PostgreSQL database operations. Server running correctly on port 8002 with UBER_MOCK=true configuration."
+-+  - agent: "testing"
+-+    message: "Additional authentication API testing completed as per review request. Tested all 5 specific endpoints through FastAPI proxy on localhost:8001: Health Check (✅), Send OTP (✅), Verify OTP (✅), Get Locations (✅), Create Location (✅), and Auth Protection (✅). All authentication endpoints are working perfectly with proper JWT token handling and mock OTP functionality."
+-\ No newline at end of file
 diff --git a/test_result.md b/test_result.md
-index 6975ece..05281fe 100644
+index 05281fe..eabfc99 100644
 --- a/test_result.md
 +++ b/test_result.md
-@@ -225,6 +225,18 @@ backend:
-         agent: "testing"
-         comment: "✅ Database operations working correctly. User creation, commute logging, and data retrieval all functioning properly through Prisma ORM."
+@@ -102,7 +102,7 @@
+ # Testing Data - Main Agent and testing sub agent both should log testing data below this section
+ #====================================================================================================
  
-+  - task: "Authentication API Endpoints (Review Request)"
+-user_problem_statement: "Test the HailO Node.js backend API running on http://localhost:8002 with comprehensive API flow testing including authentication, commute search, surge radar, and insights functionality."
++user_problem_statement: "Test the HailO mobile app authentication flow on the web preview at http://localhost:3000. Test onboarding flow, phone authentication, email authentication, and UI verification with deep indigo theme."
+ 
+ backend:
+   - task: "Health Check API"
+@@ -238,7 +238,65 @@ backend:
+         comment: "✅ All authentication endpoints tested through FastAPI proxy (localhost:8001). POST /api/v1/auth/request-otp returns mockOtp '1234', POST /api/v1/auth/verify-otp returns valid JWT token, GET /api/v1/locations works with auth, POST /api/v1/locations creates location successfully, and auth protection works correctly. All 6/6 tests passed."
+ 
+ frontend:
+-  # Frontend testing not performed as per instructions
++  - task: "Onboarding Flow"
 +    implemented: true
 +    working: true
-+    file: "/app/server/src/routes/auth.js"
++    file: "/app/frontend/app/onboarding/index.tsx"
 +    stuck_count: 0
 +    priority: "high"
 +    needs_retesting: false
 +    status_history:
 +      - working: true
 +        agent: "testing"
-+        comment: "✅ All authentication endpoints tested through FastAPI proxy (localhost:8001). POST /api/v1/auth/request-otp returns mockOtp '1234', POST /api/v1/auth/verify-otp returns valid JWT token, GET /api/v1/locations works with auth, POST /api/v1/locations creates location successfully, and auth protection works correctly. All 6/6 tests passed."
++        comment: "✅ Onboarding flow working perfectly. All 3 screens display correctly: 'Save ₹500+/month on Mumbai commutes', 'HailO Brain AI', and '1-Click Travel'. Navigation between screens works smoothly with Next buttons and Get Started button navigates to login screen."
 +
- frontend:
-   # Frontend testing not performed as per instructions
++  - task: "Phone Authentication Flow"
++    implemented: true
++    working: false
++    file: "/app/frontend/app/auth/phone.tsx"
++    stuck_count: 1
++    priority: "high"
++    needs_retesting: false
++    status_history:
++      - working: false
++        agent: "testing"
++        comment: "❌ Phone authentication partially working. Phone input accepts number (9876543210) and API call POST /api/v1/auth/request-otp returns 200 OK, but frontend doesn't navigate to OTP screen after successful API response. Navigation logic in handleContinue function needs fixing."
++
++  - task: "OTP Verification Flow"
++    implemented: true
++    working: "NA"
++    file: "/app/frontend/app/auth/otp.tsx"
++    stuck_count: 0
++    priority: "high"
++    needs_retesting: true
++    status_history:
++      - working: "NA"
++        agent: "testing"
++        comment: "Cannot test OTP flow because phone authentication doesn't navigate to OTP screen. OTP screen implementation appears complete with 4-digit input fields and demo OTP hint (1234)."
++
++  - task: "Email Authentication Flow"
++    implemented: true
++    working: false
++    file: "/app/frontend/app/auth/email.tsx"
++    stuck_count: 1
++    priority: "high"
++    needs_retesting: false
++    status_history:
++      - working: false
++        agent: "testing"
++        comment: "❌ Email authentication not working. Email input screen loads correctly, but Firebase magic link fails with 400 error: 'Domain not allowlisted by project (auth/unauthorized-continue-uri)'. Firebase configuration needs to be updated to allow localhost domain."
++
++  - task: "UI Theme Verification"
++    implemented: true
++    working: true
++    file: "/app/frontend/constants/Colors.ts"
++    stuck_count: 0
++    priority: "medium"
++    needs_retesting: false
++    status_history:
++      - working: true
++        agent: "testing"
++        comment: "✅ UI theme verification successful. Deep indigo color (#4338CA) is correctly implemented in primary buttons. HailO branding is visible and consistent. Design matches the modern, professional theme with proper gradient backgrounds and color scheme."
  
-@@ -243,4 +255,6 @@ test_plan:
+ metadata:
+   created_by: "testing_agent"
+@@ -248,13 +306,18 @@ metadata:
+ 
+ test_plan:
+   current_focus:
+-    - "All backend API testing completed successfully"
+-  stuck_tasks: []
++    - "Phone Authentication Flow" # Navigation issue after successful API call
++    - "Email Authentication Flow" # Firebase domain configuration issue
++  stuck_tasks:
++    - "Phone Authentication Flow" # API works but navigation fails
++    - "Email Authentication Flow" # Firebase unauthorized domain error
+   test_all: true
+-  test_priority: "high_first"
++  test_priority: "stuck_first"
  
  agent_communication:
    - agent: "testing"
--    message: "Comprehensive backend API testing completed successfully. All 9 test cases passed including health check, authentication flow, commute search, surge radar, insights APIs, and security protection. The HailO Node.js backend is fully functional with proper mock Uber integration, JWT authentication, and PostgreSQL database operations. Server running correctly on port 8002 with UBER_MOCK=true configuration."
+     message: "Comprehensive backend API testing completed successfully. All 9 test cases passed including health check, authentication flow, commute search, surge radar, insights APIs, and security protection. The HailO Node.js backend is fully functional with proper mock Uber integration, JWT authentication, and PostgreSQL database operations. Server running correctly on port 8002 with UBER_MOCK=true configuration."
+   - agent: "testing"
+-    message: "Additional authentication API testing completed as per review request. Tested all 5 specific endpoints through FastAPI proxy on localhost:8001: Health Check (✅), Send OTP (✅), Verify OTP (✅), Get Locations (✅), Create Location (✅), and Auth Protection (✅). All authentication endpoints are working perfectly with proper JWT token handling and mock OTP functionality."
 \ No newline at end of file
-+    message: "Comprehensive backend API testing completed successfully. All 9 test cases passed including health check, authentication flow, commute search, surge radar, insights APIs, and security protection. The HailO Node.js backend is fully functional with proper mock Uber integration, JWT authentication, and PostgreSQL database operations. Server running correctly on port 8002 with UBER_MOCK=true configuration."
-+  - agent: "testing"
 +    message: "Additional authentication API testing completed as per review request. Tested all 5 specific endpoints through FastAPI proxy on localhost:8001: Health Check (✅), Send OTP (✅), Verify OTP (✅), Get Locations (✅), Create Location (✅), and Auth Protection (✅). All authentication endpoints are working perfectly with proper JWT token handling and mock OTP functionality."
++  - agent: "testing"
++    message: "Frontend authentication flow testing completed. RESULTS: ✅ Onboarding Flow (3 screens working perfectly), ✅ UI Theme (deep indigo #4338CA verified), ❌ Phone Auth (API works but navigation fails), ❌ Email Auth (Firebase domain not allowlisted). Critical issues found: 1) Phone auth doesn't navigate to OTP screen after successful API call, 2) Firebase email auth fails with unauthorized domain error for localhost."
 \ No newline at end of file
