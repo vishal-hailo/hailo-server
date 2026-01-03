@@ -7,15 +7,15 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-// Firebase configuration
+// Firebase configuration - Personal Project (hailo-1ba05)
 const firebaseConfig = {
-  apiKey: 'AIzaSyCZsnFLpR9RkeYB_AxU9syWM4bp3sCdQ-g',
-  authDomain: 'hailo-deb7b.firebaseapp.com',
-  projectId: 'hailo-deb7b',
-  storageBucket: 'hailo-deb7b.firebasestorage.app',
-  messagingSenderId: '90094118448',
-  appId: '1:90094118448:web:92dda6d7ac892ada8daff5',
-  measurementId: 'G-KBSYYBEYRD',
+  apiKey: 'AIzaSyAI4kcJJvHPQlRP6lxmEon2hpkSxYn9IhI',
+  authDomain: 'hailo-1ba05.firebaseapp.com',
+  projectId: 'hailo-1ba05',
+  storageBucket: 'hailo-1ba05.firebasestorage.app',
+  messagingSenderId: '369818132526',
+  appId: '1:369818132526:web:2fb425f6dc47f14ea0ffbf',
+  measurementId: 'G-Y8XRDF29PJ',
 };
 
 // Initialize Firebase App (singleton pattern)
@@ -37,5 +37,5 @@ if (Platform.OS === 'web') {
   }
 }
 
-export { app, auth };
+export { app, auth, firebaseConfig };
 export default app;
