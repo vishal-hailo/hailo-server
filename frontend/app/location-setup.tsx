@@ -4,20 +4,22 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useLocations } from '../hooks/useLocations';
+import Colors from '../constants/Colors';
 
-// API_URL from environment variable
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+const { width } = Dimensions.get('window');
 
 export default function LocationSetupScreen() {
   const router = useRouter();
+  const { locations, loading: locationsLoading, fetchLocations } = useLocations();
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
@@ -26,12 +28,9 @@ export default function LocationSetupScreen() {
 
   const checkExistingLocations = async () => {
     try {
-      const token = await AsyncStorage.getItem('authToken');
-      const response = await axios.get(`${API_URL}/api/v1/locations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const fetchedLocations = await fetchLocations();
       
-      if (response.data && response.data.length > 0) {
+      if (fetchedLocations && fetchedLocations.length > 0) {
         // User already has locations, skip setup
         await AsyncStorage.setItem('locationsSetup', 'true');
         router.replace('/(tabs)/home');
@@ -52,60 +51,133 @@ export default function LocationSetupScreen() {
     router.push('/locations-manager');
   };
 
-  if (checking) {
+  if (checking || locationsLoading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FF6B35" />
-          <Text style={styles.loadingText}>Loading...</Text>
-        </View>
-      </SafeAreaView>
+      <View style={styles.container}>
+        <LinearGradient
+          colors={[Colors.gradient.start, Colors.gradient.middle, Colors.gradient.end]}
+          style={styles.gradientBackground}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary.main} />
+            <Text style={styles.loadingText}>Loading...</Text>
+          </View>
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="location" size={80} color="#FF6B35" />
+    <View style={styles.container}>
+      <LinearGradient
+        colors={[Colors.gradient.start, Colors.gradient.middle, Colors.gradient.end]}
+        style={styles.gradientBackground}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <View style={[styles.blob, styles.blobTop]} />
+      <View style={[styles.blob, styles.blobBottom]} />
+
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.content}>
+          {/* Icon */}
+          <View style={styles.iconContainer}>
+            <View style={styles.iconBackground}>
+              <Ionicons name="location" size={48} color={Colors.primary.main} />
+            </View>
+          </View>
+
+          <Text style={styles.title}>Set Up Your Locations</Text>
+          <Text style={styles.subtitle}>
+            Add your frequently visited places like Home and Office to get quick commute estimates and smart surge alerts.
+          </Text>
+
+          {/* Features */}
+          <View style={styles.featuresContainer}>
+            <View style={styles.feature}>
+              <View style={[styles.featureIcon, { backgroundColor: '#D1FAE5' }]}>
+                <Ionicons name="home" size={24} color={Colors.success} />
+              </View>
+              <View style={styles.featureContent}>
+                <Text style={styles.featureTitle}>Save unlimited locations</Text>
+                <Text style={styles.featureSubtitle}>Home, Office, Gym, and more</Text>
+              </View>
+            </View>
+            <View style={styles.feature}>
+              <View style={[styles.featureIcon, { backgroundColor: Colors.primary.subtle }]}>
+                <Ionicons name="navigate" size={24} color={Colors.primary.main} />
+              </View>
+              <View style={styles.featureContent}>
+                <Text style={styles.featureTitle}>One-tap booking</Text>
+                <Text style={styles.featureSubtitle}>Quick access to your daily routes</Text>
+              </View>
+            </View>
+            <View style={styles.feature}>
+              <View style={[styles.featureIcon, { backgroundColor: '#FEF3E2' }]}>
+                <Ionicons name="flash" size={24} color={Colors.secondary.orange} />
+              </View>
+              <View style={styles.featureContent}>
+                <Text style={styles.featureTitle}>Surge alerts</Text>
+                <Text style={styles.featureSubtitle}>Get notified when prices drop</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Buttons */}
+          <TouchableOpacity 
+            style={styles.primaryButton} 
+            onPress={handleAddLocations}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={22} color={Colors.text.inverse} style={styles.buttonIconLeft} />
+            <Text style={styles.primaryButtonText}>Add Locations Now</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.secondaryButton} 
+            onPress={handleSetupLater}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.secondaryButtonText}>Skip for Now</Text>
+          </TouchableOpacity>
         </View>
-
-        <Text style={styles.title}>Set Up Your Locations</Text>
-        <Text style={styles.subtitle}>
-          Add your frequently visited places like Home and Office to get quick commute estimates and smart surge alerts.
-        </Text>
-
-        <View style={styles.features}>
-          <View style={styles.feature}>
-            <Ionicons name="home" size={24} color="#10B981" />
-            <Text style={styles.featureText}>Save unlimited locations</Text>
-          </View>
-          <View style={styles.feature}>
-            <Ionicons name="navigate" size={24} color="#3B82F6" />
-            <Text style={styles.featureText}>Auto-detect current location</Text>
-          </View>
-          <View style={styles.feature}>
-            <Ionicons name="time" size={24} color="#F59E0B" />
-            <Text style={styles.featureText}>Get real-time estimates</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.primaryButton} onPress={handleAddLocations}>
-          <Text style={styles.primaryButtonText}>Add Locations Now</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.secondaryButton} onPress={handleSetupLater}>
-          <Text style={styles.secondaryButtonText}>Skip for Now</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Colors.background.primary,
+  },
+  gradientBackground: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  blob: {
+    position: 'absolute',
+    borderRadius: 999,
+    opacity: 0.4,
+  },
+  blobTop: {
+    width: width * 0.8,
+    height: width * 0.8,
+    backgroundColor: Colors.primary.muted,
+    top: -width * 0.3,
+    left: -width * 0.2,
+  },
+  blobBottom: {
+    width: width * 0.6,
+    height: width * 0.6,
+    backgroundColor: '#D1FAE5',
+    bottom: 0,
+    right: -width * 0.2,
+  },
+  safeArea: {
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,
@@ -115,7 +187,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#6B7280',
+    color: Colors.text.secondary,
   },
   content: {
     flex: 1,
@@ -124,57 +196,93 @@ const styles = StyleSheet.create({
   },
   iconContainer: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
+  },
+  iconBackground: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: Colors.primary.subtle,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: '700',
+    color: Colors.text.primary,
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
+    letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: Colors.text.secondary,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 40,
+    marginBottom: 32,
   },
-  features: {
-    marginBottom: 40,
+  featuresContainer: {
+    marginBottom: 32,
   },
   feature: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: Colors.background.card,
     padding: 16,
-    borderRadius: 12,
-  },
-  featureText: {
-    fontSize: 16,
-    color: '#1F2937',
-    marginLeft: 12,
-    fontWeight: '500',
-  },
-  primaryButton: {
-    backgroundColor: '#FF6B35',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
+    borderRadius: 16,
     marginBottom: 12,
   },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
+  featureIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  featureContent: {
+    flex: 1,
+  },
+  featureTitle: {
+    fontSize: 16,
     fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 2,
+  },
+  featureSubtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  primaryButton: {
+    backgroundColor: Colors.primary.main,
+    borderRadius: 50,
+    paddingVertical: 18,
+    paddingHorizontal: 32,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.primary.main,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+    marginBottom: 12,
+  },
+  buttonIconLeft: {
+    marginRight: 8,
+  },
+  primaryButtonText: {
+    color: Colors.text.inverse,
+    fontSize: 17,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
   secondaryButton: {
     padding: 16,
     alignItems: 'center',
   },
   secondaryButtonText: {
-    color: '#6B7280',
+    color: Colors.text.secondary,
     fontSize: 16,
     fontWeight: '600',
   },
