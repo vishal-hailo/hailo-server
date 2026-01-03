@@ -91,7 +91,9 @@ export default function OTPScreen() {
 
     setLoading(true);
     try {
-      const result = await verifyOTP(verificationId || 'mock', otpString);
+      console.log('Verifying OTP:', otpString);
+      const result = await verifyOTP(verificationId || 'firebase', otpString);
+      console.log('Verify result:', result);
       
       if (result.success) {
         // Check if user needs to complete registration
@@ -119,7 +121,7 @@ export default function OTPScreen() {
       }
     } catch (error: any) {
       console.error('Verify OTP error:', error);
-      Alert.alert('Error', 'Verification failed. Please try again.');
+      Alert.alert('Error', error.message || 'Verification failed. Please try again.');
     } finally {
       setLoading(false);
     }
