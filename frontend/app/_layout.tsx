@@ -1,20 +1,30 @@
+import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider } from '../contexts/AuthContext';
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="auth/phone" />
-        <Stack.Screen name="auth/otp" />
-        <Stack.Screen name="home" />
-        <Stack.Screen name="surge-radar" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="success" />
-        <Stack.Screen name="insights" />
-      </Stack>
+      <AuthProvider>
+        <StatusBar style="dark" />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="onboarding/index" />
+          <Stack.Screen name="auth/phone" />
+          <Stack.Screen name="auth/otp" />
+          <Stack.Screen name="auth/register" />
+          <Stack.Screen name="auth/email" />
+          <Stack.Screen name="location-setup" />
+          <Stack.Screen name="locations-manager" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="surge-radar" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="plan-ride" />
+          <Stack.Screen name="search" />
+          <Stack.Screen name="success" />
+        </Stack>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
