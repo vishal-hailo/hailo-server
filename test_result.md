@@ -306,7 +306,11 @@ metadata:
 
 test_plan:
   current_focus:
-    - "All backend API testing completed successfully"
+    - "Onboarding Flow"
+    - "Phone Authentication Flow"
+    - "OTP Verification Flow"
+    - "Email Authentication Flow"
+    - "UI Theme Verification"
   stuck_tasks: []
   test_all: true
   test_priority: "high_first"
