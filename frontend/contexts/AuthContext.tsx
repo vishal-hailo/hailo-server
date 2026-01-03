@@ -19,10 +19,19 @@ import Constants from 'expo-constants';
 
 // Get the API URL based on platform
 const getApiUrl = (): string => {
-  // For web, use relative path to hit the proxy
+  // For web preview, check if we're on the Emergent preview domain
   if (Platform.OS === 'web') {
-    // Use the current origin + /api prefix
     if (typeof window !== 'undefined' && window.location) {
+      const hostname = window.location.hostname;
+      // If on Emergent preview domain, use same origin (proxy is configured)
+      if (hostname.includes('preview.emergentagent.com') || hostname.includes('devtunnels.ms')) {
+        return window.location.origin;
+      }
+      // For localhost development, we need to call the backend port directly
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        // The FastAPI proxy is on port 8001
+        return `http://${hostname}:8001`;
+      }
       return window.location.origin;
     }
   }
@@ -31,6 +40,7 @@ const getApiUrl = (): string => {
 };
 
 const API_URL = getApiUrl();
+console.log('AuthContext API_URL:', API_URL);
 
 interface AuthContextType {
   user: User | null;
