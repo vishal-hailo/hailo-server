@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 // Firebase configuration - Personal Project (hailo-1ba05)
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: 'AIzaSyAI4kcJJvHPQlRP6lxmEon2hpkSxYn9IhI',
   authDomain: 'hailo-1ba05.firebaseapp.com',
   projectId: 'hailo-1ba05',
@@ -37,5 +37,5 @@ if (Platform.OS === 'web') {
   }
 }
 
-export { app, auth, firebaseConfig };
+export { app, auth };
 export default app;
