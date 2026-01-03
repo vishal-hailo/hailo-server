@@ -18,7 +18,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
-import { useAuth, firebaseConfig } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { firebaseConfig } from '../../config/firebase';
 import Colors from '../../constants/Colors';
 
 const { width } = Dimensions.get('window');
