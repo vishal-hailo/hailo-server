@@ -217,8 +217,8 @@ export default function OTPScreen() {
 
             {/* Info message */}
             <View style={styles.hintContainer}>
-              <Ionicons name="information-circle" size={16} color={Colors.primary.main} />
-              <Text style={styles.hintText}>Enter the code sent to your phone</Text>
+              <Ionicons name="information-circle" size={16} color={Colors.success} />
+              <Text style={styles.hintText}>Demo mode: Use OTP 1234</Text>
             </View>
 
             {/* Verify Button */}
