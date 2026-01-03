@@ -215,10 +215,10 @@ export default function OTPScreen() {
               ))}
             </View>
 
-            {/* Demo Hint */}
+            {/* Info message */}
             <View style={styles.hintContainer}>
-              <Ionicons name="information-circle" size={16} color={Colors.success} />
-              <Text style={styles.hintText}>Demo OTP: 1234</Text>
+              <Ionicons name="information-circle" size={16} color={Colors.primary.main} />
+              <Text style={styles.hintText}>Enter the code sent to your phone</Text>
             </View>
 
             {/* Verify Button */}
