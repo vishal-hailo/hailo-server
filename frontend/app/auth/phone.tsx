@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,7 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAuth } from '../../contexts/AuthContext';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { useAuth, firebaseConfig } from '../../contexts/AuthContext';
 import Colors from '../../constants/Colors';
 
 const { width } = Dimensions.get('window');
@@ -41,9 +42,17 @@ const HailOLogo = () => (
 
 export default function PhoneScreen() {
   const router = useRouter();
-  const { sendOTP, loading: authLoading } = useAuth();
+  const { sendOTP, loading: authLoading, setRecaptchaVerifier } = useAuth();
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const recaptchaVerifier = useRef<FirebaseRecaptchaVerifierModal>(null);
+
+  // Set the recaptcha verifier in auth context when component mounts
+  useEffect(() => {
+    if (recaptchaVerifier.current) {
+      setRecaptchaVerifier(recaptchaVerifier.current as any);
+    }
+  }, [setRecaptchaVerifier]);
 
   const handleContinue = async () => {
     const cleanPhone = phone.replace(/\D/g, '');
@@ -66,10 +75,9 @@ export default function PhoneScreen() {
       
       if (result.success) {
         console.log('Navigating to OTP screen...');
-        // Use replace to prevent going back to phone screen after OTP
         router.push({
           pathname: '/auth/otp',
-          params: { phone: fullPhone, verificationId: result.verificationId || 'mock' }
+          params: { phone: fullPhone, verificationId: result.verificationId || 'firebase' }
         });
       } else {
         Alert.alert('Error', result.error || 'Failed to send OTP. Please try again.');
@@ -90,6 +98,13 @@ export default function PhoneScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Firebase reCAPTCHA Modal */}
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={firebaseConfig}
+        attemptInvisibleVerification={true}
+      />
+
       {/* Background */}
       <LinearGradient
         colors={[Colors.gradient.start, Colors.gradient.middle, Colors.gradient.end]}
@@ -133,6 +148,12 @@ export default function PhoneScreen() {
                   editable={!isLoading}
                 />
               </View>
+            </View>
+
+            {/* Info about real SMS */}
+            <View style={styles.infoContainer}>
+              <Ionicons name="information-circle" size={16} color={Colors.primary.main} />
+              <Text style={styles.infoText}>You will receive a real SMS with OTP</Text>
             </View>
 
             {/* Continue Button */}
@@ -271,7 +292,7 @@ const styles = StyleSheet.create({
     color: Colors.text.secondary,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -300,6 +321,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text.primary,
     height: '100%',
+  },
+  infoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+    gap: 6,
+  },
+  infoText: {
+    fontSize: 13,
+    color: Colors.primary.main,
+    fontWeight: '500',
   },
   primaryButton: {
     backgroundColor: Colors.primary.main,
