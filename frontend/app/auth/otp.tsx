@@ -377,8 +377,8 @@ const styles = StyleSheet.create({
   },
   hintText: {
     fontSize: 14,
-    color: Colors.success,
-    fontWeight: '600',
+    color: Colors.primary.main,
+    fontWeight: '500',
   },
   primaryButton: {
     backgroundColor: Colors.primary.main,
