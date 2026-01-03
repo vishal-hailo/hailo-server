@@ -306,14 +306,13 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Onboarding Flow"
-    - "Phone Authentication Flow"
-    - "OTP Verification Flow"
-    - "Email Authentication Flow"
-    - "UI Theme Verification"
-  stuck_tasks: []
+    - "Phone Authentication Flow" # Navigation issue after successful API call
+    - "Email Authentication Flow" # Firebase domain configuration issue
+  stuck_tasks:
+    - "Phone Authentication Flow" # API works but navigation fails
+    - "Email Authentication Flow" # Firebase unauthorized domain error
   test_all: true
-  test_priority: "high_first"
+  test_priority: "stuck_first"
 
 agent_communication:
   - agent: "testing"
