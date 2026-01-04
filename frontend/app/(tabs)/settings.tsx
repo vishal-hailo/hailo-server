@@ -338,7 +338,7 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/settings')}>
             <View style={[styles.menuIcon, { backgroundColor: '#E5E7EB' }]}>
               <Ionicons name="settings" size={20} color={Colors.text.secondary} />
             </View>
@@ -348,7 +348,7 @@ export default function ProfileScreen() {
             <Ionicons name="chevron-forward" size={20} color={Colors.text.secondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/settings/help')}>
             <View style={[styles.menuIcon, { backgroundColor: '#E5E7EB' }]}>
               <Ionicons name="help-circle" size={20} color={Colors.text.secondary} />
             </View>
