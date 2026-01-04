@@ -140,7 +140,7 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
-          <TouchableOpacity style={styles.settingsIcon}>
+          <TouchableOpacity style={styles.settingsIcon} onPress={() => router.push('/settings')}>
             <Ionicons name="settings-outline" size={24} color={Colors.text.primary} />
           </TouchableOpacity>
         </View>
