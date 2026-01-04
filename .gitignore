@@ -133,3 +133,10 @@ android-sdk/ -e
 # Environment files
 *.env
 *.env.*
+
+# Firebase and other secrets
+secrets/
+**/secrets/
+*firebase*.json
+*service-account*.json
+*-adminsdk-*.json
