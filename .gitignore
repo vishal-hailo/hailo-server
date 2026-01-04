@@ -140,3 +140,7 @@ secrets/
 *firebase*.json
 *service-account*.json
 *-adminsdk-*.json
+-e 
+# Environment files
+*.env
+*.env.*
