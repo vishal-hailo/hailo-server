@@ -149,6 +149,21 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Support Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>SUPPORT</Text>
+          <View style={styles.sectionContent}>
+            <SettingsItem
+              icon="help-circle"
+              iconColor="#8B5CF6"
+              iconBg="#EDE9FE"
+              title="Help & Support"
+              subtitle="FAQs, contact us, report issues"
+              onPress={() => router.push('/settings/help')}
+            />
+          </View>
+        </View>
+
         {/* Delete Account */}
         <TouchableOpacity
           style={styles.deleteButton}
