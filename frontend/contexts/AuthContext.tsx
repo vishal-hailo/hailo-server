@@ -199,7 +199,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setError(null);
 
       const actionCodeSettings = {
-        url: 'https://stage-view-1.preview.emergentagent.com/auth/email-callback',
+        url: 'https://ride-ui-overhaul-1.preview.emergentagent.com/auth/email-callback',
         handleCodeInApp: true,
         iOS: {
           bundleId: 'com.hailo.app',

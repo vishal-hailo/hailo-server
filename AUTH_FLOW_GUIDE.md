@@ -14,7 +14,7 @@ The Node.js backend server is running successfully on port 8001 with all authent
 ## 📱 How to Login to the App
 
 ### Step 1: Enter Phone Number
-1. Open the app at: https://stage-view-1.preview.emergentagent.com
+1. Open the app at: https://ride-ui-overhaul-1.preview.emergentagent.com
 2. You should see the "Welcome to HailO" screen
 3. Enter your phone number in the format: `+919876543210`
    - **Important**: Must include `+91` prefix
@@ -51,8 +51,8 @@ The Node.js backend server is running successfully on port 8001 with all authent
    - Should see logs like:
      ```
      Attempting to send OTP to: +919876543210
-     API URL: https://stage-view-1.preview.emergentagent.com
-     Making request to: https://stage-view-1.preview.emergentagent.com/api/v1/auth/request-otp
+     API URL: https://ride-ui-overhaul-1.preview.emergentagent.com
+     Making request to: https://ride-ui-overhaul-1.preview.emergentagent.com/api/v1/auth/request-otp
      OTP Response: {success: true, mockOtp: "1234", ...}
      OTP sent successfully, navigating to OTP screen
      ```
@@ -76,7 +76,7 @@ You can test the backend APIs directly using curl:
 
 ### Test 1: Request OTP
 ```bash
-curl -X POST https://stage-view-1.preview.emergentagent.com/api/v1/auth/request-otp \
+curl -X POST https://ride-ui-overhaul-1.preview.emergentagent.com/api/v1/auth/request-otp \
   -H "Content-Type: application/json" \
   -d '{"phone": "+919876543210"}'
 ```
@@ -93,7 +93,7 @@ Expected response:
 
 ### Test 2: Verify OTP
 ```bash
-curl -X POST https://stage-view-1.preview.emergentagent.com/api/v1/auth/verify-otp \
+curl -X POST https://ride-ui-overhaul-1.preview.emergentagent.com/api/v1/auth/verify-otp \
   -H "Content-Type: application/json" \
   -d '{"phone": "+919876543210", "otp": "1234"}'
 ```
@@ -112,7 +112,7 @@ Expected response:
 
 ## 📊 Current Configuration
 
-- **Backend URL**: https://stage-view-1.preview.emergentagent.com
+- **Backend URL**: https://ride-ui-overhaul-1.preview.emergentagent.com
 - **Backend Port**: 8001
 - **Auth Type**: Mock OTP (no real SMS)
 - **Mock OTP Code**: `1234`

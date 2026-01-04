@@ -115,8 +115,8 @@ Go to App Store Connect → TestFlight → Add internal/external testers
 ### Required Files (.env)
 ```env
 EXPO_TUNNEL_SUBDOMAIN=uber-tracker-4
-EXPO_PACKAGER_HOSTNAME=https://stage-view-1.preview.emergentagent.com
-EXPO_PUBLIC_BACKEND_URL=https://stage-view-1.preview.emergentagent.com
+EXPO_PACKAGER_HOSTNAME=https://ride-ui-overhaul-1.preview.emergentagent.com
+EXPO_PUBLIC_BACKEND_URL=https://ride-ui-overhaul-1.preview.emergentagent.com
 EXPO_USE_FAST_RESOLVER=1
 ```
 
