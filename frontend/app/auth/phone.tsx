@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { firebaseConfig } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import Colors from '../../constants/Colors';
 
@@ -27,8 +29,8 @@ const HailOLogo = () => (
   <View style={styles.logoContainer}>
     <View style={styles.logoIconWrapper}>
       <Svg width="32" height="32" viewBox="0 0 32 32">
-        <Path 
-          d="M8 8 L24 16 L8 24 L12 16 Z" 
+        <Path
+          d="M8 8 L24 16 L8 24 L12 16 Z"
           fill={Colors.text.inverse}
           stroke={Colors.text.inverse}
           strokeWidth="1"
@@ -39,36 +41,36 @@ const HailOLogo = () => (
   </View>
 );
 
-export default function PhoneScreen() {
+export default function PhoneAuthScreen() {
   const router = useRouter();
-  const { sendOTP, loading: authLoading } = useAuth();
-  const [phone, setPhone] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { sendOTP, loading, error } = useAuth();
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const recaptchaVerifier = useRef(null);
 
   const handleContinue = async () => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+
     if (cleanPhone.length < 10) {
       Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number');
       return;
     }
 
-    const fullPhone = '+91' + cleanPhone;
-    setLoading(true);
-    
+    const fullPhone = `+91${phoneNumber}`;
+    // setLoading(true); // Removed as loading is from useAuth
+
     try {
       // Store phone for OTP verification
       await AsyncStorage.setItem('pendingPhone', fullPhone);
       console.log('Sending OTP to:', fullPhone);
-      
-      const result = await sendOTP(fullPhone);
+
+      const result = await sendOTP(fullPhone, recaptchaVerifier.current);
       console.log('OTP result:', result);
-      
+
       if (result.success) {
         console.log('Navigating to OTP screen...');
         router.push({
           pathname: '/auth/otp',
-          params: { phone: fullPhone, verificationId: result.verificationId || 'mock' }
+          params: { phone: fullPhone, verificationId: result.verificationId }
         });
       } else {
         Alert.alert('Error', result.error || 'Failed to send OTP. Please try again.');
@@ -77,7 +79,7 @@ export default function PhoneScreen() {
       console.error('Send OTP error:', error);
       Alert.alert('Error', error.message || 'Failed to send OTP. Please try again.');
     } finally {
-      setLoading(false);
+      // setLoading(false); // Removed as loading is from useAuth
     }
   };
 
@@ -85,7 +87,7 @@ export default function PhoneScreen() {
     router.push('/auth/email');
   };
 
-  const isLoading = loading || authLoading;
+  // const isLoading = loading || authLoading; // Simplified to just 'loading' from useAuth
 
   return (
     <View style={styles.container}>
@@ -123,31 +125,27 @@ export default function PhoneScreen() {
                 <View style={styles.divider} />
                 <TextInput
                   style={styles.input}
-                  value={phone}
-                  onChangeText={setPhone}
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
                   placeholder="Phone Number"
                   placeholderTextColor={Colors.text.tertiary}
                   keyboardType="phone-pad"
                   maxLength={10}
-                  editable={!isLoading}
+                  editable={!loading}
                 />
               </View>
             </View>
 
-            {/* Info message */}
-            <View style={styles.infoContainer}>
-              <Ionicons name="information-circle" size={16} color={Colors.success} />
-              <Text style={styles.infoText}>Demo mode: Use OTP 1234</Text>
-            </View>
+
 
             {/* Continue Button */}
             <TouchableOpacity
-              style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
+              style={[styles.primaryButton, loading && styles.buttonDisabled]}
               onPress={handleContinue}
-              disabled={isLoading}
+              disabled={loading}
               activeOpacity={0.8}
             >
-              {isLoading ? (
+              {loading ? (
                 <ActivityIndicator color={Colors.text.inverse} />
               ) : (
                 <Text style={styles.primaryButtonText}>Continue with Phone</Text>
@@ -166,7 +164,7 @@ export default function PhoneScreen() {
               style={styles.secondaryButton}
               onPress={handleEmailSignIn}
               activeOpacity={0.7}
-              disabled={isLoading}
+              disabled={loading}
             >
               <Ionicons name="mail-outline" size={20} color={Colors.text.primary} style={styles.buttonIconLeft} />
               <Text style={styles.secondaryButtonText}>Sign in with Email</Text>
@@ -187,6 +185,13 @@ export default function PhoneScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+
+        <FirebaseRecaptchaVerifierModal
+          ref={recaptchaVerifier}
+          firebaseConfig={firebaseConfig}
+          title="Prove you are human!" // Optional title
+          cancelLabel="Close" // Optional cancel label
+        />
       </SafeAreaView>
     </View>
   );

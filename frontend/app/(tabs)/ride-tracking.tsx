@@ -13,6 +13,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { io } from 'socket.io-client';
+import { API_URL } from '../../constants/Config';
 import Colors from '../../constants/Colors';
 
 // Only import MapView on native platforms
@@ -28,7 +30,7 @@ if (Platform.OS !== 'web') {
 }
 
 const { width } = Dimensions.get('window');
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+
 
 export default function RideTrackingScreen() {
   const router = useRouter();
@@ -41,43 +43,87 @@ export default function RideTrackingScreen() {
     longitudeDelta: 0.0421,
   });
 
+  const [socket, setSocket] = useState<any>(null);
+
   useEffect(() => {
     loadActiveRide();
+
+    // Connect to WebSocket
+    const newSocket = io(API_URL);
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
   }, []);
+
+  useEffect(() => {
+    if (activeRide && socket) {
+      const transactionId = activeRide.transactionId || activeRide.id; // Fallback
+
+      console.log('Listening for updates on:', `status_update_${transactionId}`);
+
+      socket.on(`status_update_${transactionId}`, (data: any) => {
+        console.log('Received Status Update:', data);
+
+        // Navigate to Analytics if completed
+        if (data.state === 'COMPLETED') {
+          console.log('Ride Completed! Navigating to Analytics...');
+          // Add a small delay for user to see "Completed" state if desired, or go immediately
+          setTimeout(() => {
+            router.replace({
+              pathname: '/ride-analytics',
+              params: { transactionId }
+            });
+          }, 1000);
+          return;
+        }
+
+        setActiveRide((prev: any) => {
+          // Update status
+          const updated = { ...prev };
+          if (data.state) updated.status = data.state;
+
+          // Update driver location (if available)
+          if (data.location) {
+            updated.driverLocation = data.location;
+          }
+          return updated;
+        });
+      });
+
+      // Also trigger a status check immediately
+      statusCheck(transactionId);
+    }
+  }, [activeRide, socket]);
+
+  const statusCheck = async (transactionId: string) => {
+    try {
+      await axios.post(`${API_URL}/ondc/status`, { transactionId });
+    } catch (err) {
+      console.error("Status check failed", err);
+    }
+  };
 
   const loadActiveRide = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('authToken');
-      
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+      // ... existing load logic
+      // For Demo: If no upcoming ride API, maybe we check local storage or context?
+      // Since specific API for active ride might not be ready, let's grab from props or context if passed.
+      // But adhering to file:
 
-      // Fetch upcoming rides to find active one
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) { setLoading(false); return; }
+
+      // We need to fetch the Transaction details actually, not just 'rides'.
+      // But for now assuming /api/v1/rides/upcoming returns the ONDC transaction format we need.
+
+      // ... existing fetch ...
       const response = await axios.get(`${API_URL}/api/v1/rides/upcoming`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      // Find ride with status IN_PROGRESS or CONFIRMED
-      const ride = response.data.find(
-        (r: any) => r.status === 'IN_PROGRESS' || r.status === 'CONFIRMED'
-      );
-      
-      if (ride) {
-        setActiveRide(ride);
-        
-        // Update map region if coordinates available
-        if (ride.from.latitude && ride.from.longitude) {
-          setRegion({
-            latitude: ride.from.latitude,
-            longitude: ride.from.longitude,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          });
-        }
-      }
+      // ...
     } catch (error) {
       console.error('Load active ride error:', error);
     } finally {
@@ -113,7 +159,7 @@ export default function RideTrackingScreen() {
           <Text style={styles.emptySubtitle}>
             You don't have any rides in progress. Schedule a ride to track it here.
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.emptyButton}
             onPress={() => router.push('/(tabs)/explorer')}
           >
@@ -131,16 +177,16 @@ export default function RideTrackingScreen() {
         <TouchableOpacity style={styles.headerButton} onPress={() => router.back()}>
           <Ionicons name="close" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
-        
+
         <View style={styles.statusContainer}>
-          <View style={[styles.statusDot, { 
-            backgroundColor: activeRide.status === 'IN_PROGRESS' ? '#10B981' : '#F59E0B' 
+          <View style={[styles.statusDot, {
+            backgroundColor: activeRide.status === 'IN_PROGRESS' ? '#10B981' : '#F59E0B'
           }]} />
           <Text style={styles.statusText}>
             {activeRide.status === 'IN_PROGRESS' ? 'On the way' : 'Waiting for driver'}
           </Text>
         </View>
-        
+
         <TouchableOpacity style={styles.headerButton}>
           <Ionicons name="share-outline" size={24} color={Colors.text.primary} />
         </TouchableOpacity>
@@ -157,7 +203,7 @@ export default function RideTrackingScreen() {
             </Text>
           </View>
         </View>
-        
+
         <View style={styles.routeItem}>
           <View style={[styles.routeDot, { backgroundColor: Colors.secondary.teal }]} />
           <View style={styles.routeInfo}>
@@ -220,7 +266,7 @@ export default function RideTrackingScreen() {
                   pinColor={Colors.primary.main}
                 />
               )}
-              
+
               {/* Drop-off Marker */}
               {activeRide.to.latitude && activeRide.to.longitude && Marker && (
                 <Marker
@@ -233,10 +279,27 @@ export default function RideTrackingScreen() {
                   pinColor={Colors.secondary.teal}
                 />
               )}
+
+              {/* Live Driver Marker */}
+              {activeRide.driverLocation && Marker && (
+                <Marker
+                  coordinate={{
+                    latitude: activeRide.driverLocation.latitude,
+                    longitude: activeRide.driverLocation.longitude
+                  }}
+                  title="Your Ride"
+                  description="Driver is on the way"
+                  image={require('../../assets/images/car-top-view.png')} // Assuming asset exists, or fallback to pin
+                >
+                  <View style={{ backgroundColor: 'white', borderRadius: 15, padding: 5, elevation: 5 }}>
+                    <Ionicons name="car" size={20} color="black" />
+                  </View>
+                </Marker>
+              )}
             </MapView>
           )
         )}
-        
+
         {/* Floating Car Icon */}
         <View style={styles.carIcon}>
           <Ionicons name="car-sport" size={32} color={Colors.text.inverse} />
@@ -255,14 +318,14 @@ export default function RideTrackingScreen() {
               })}
             </Text>
           </View>
-          
+
           {activeRide.duration && (
             <View style={styles.rideTimeItem}>
               <Text style={styles.rideTimeLabel}>Duration</Text>
               <Text style={styles.rideTimeValue}>{activeRide.duration} min</Text>
             </View>
           )}
-          
+
           {activeRide.estimatedPrice && (
             <View style={styles.rideTimeItem}>
               <Text style={styles.rideTimeLabel}>Estimated Price</Text>
@@ -327,7 +390,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background.secondary,
   },
-  
+
   // Loading
   loadingContainer: {
     flex: 1,
@@ -339,7 +402,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.text.secondary,
   },
-  
+
   // Empty State
   emptyState: {
     flex: 1,

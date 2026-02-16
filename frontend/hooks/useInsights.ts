@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+import { API_URL } from '../constants/Config';
 
 export interface InsightsStats {
   totalRides: number;
@@ -64,7 +63,7 @@ export const useInsights = () => {
       setLoading(true);
       setError(null);
       const headers = await getAuthHeader();
-      
+
       const response = await axios.get(`${API_URL}/api/v1/insights/summary`, { headers });
       setSummary(response.data);
       return response.data;
@@ -84,7 +83,7 @@ export const useInsights = () => {
       setLoading(true);
       setError(null);
       const headers = await getAuthHeader();
-      
+
       const response = await axios.get(`${API_URL}/api/v1/insights/recommendations`, { headers });
       setRecommendations(response.data);
       return response.data;

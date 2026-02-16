@@ -164,3 +164,10 @@ secrets/
 # Environment files
 *.env
 *.env.*
+
+# ONDC Logs
+server/ondc_logs/
+
+# SQLite DB
+*.db
+*.db-journal

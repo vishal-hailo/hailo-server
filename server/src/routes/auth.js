@@ -12,14 +12,14 @@ const MOCK_OTP = process.env.OTP_MOCK_CODE || '1234';
 router.post('/request-otp', async (req, res) => {
   try {
     const { phone } = req.body;
-    
+
     if (!phone || !phone.startsWith('+91')) {
       return res.status(400).json({ error: 'Invalid phone number. Must start with +91' });
     }
-    
+
     // In mock mode, always succeed
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'OTP sent successfully',
       mockOtp: MOCK_OTP,
       note: 'In production, OTP would be sent via SMS'
@@ -34,19 +34,19 @@ router.post('/request-otp', async (req, res) => {
 router.post('/verify-otp', async (req, res) => {
   try {
     const { phone, otp, name } = req.body;
-    
+
     if (!phone || !otp) {
       return res.status(400).json({ error: 'Phone and OTP are required' });
     }
-    
+
     // Verify mock OTP
     if (otp !== MOCK_OTP) {
       return res.status(401).json({ error: 'Invalid OTP' });
     }
-    
+
     // Find or create user in MongoDB
     let user = await User.findOne({ phone });
-    
+
     if (!user) {
       user = await User.create({
         phone,
@@ -56,9 +56,9 @@ router.post('/verify-otp', async (req, res) => {
       user.name = name;
       await user.save();
     }
-    
+
     const token = generateToken(user._id, user.phone);
-    
+
     res.json({
       token,
       user: {
@@ -68,6 +68,7 @@ router.post('/verify-otp', async (req, res) => {
         totalRides: user.totalRides,
         totalSaved: user.totalSaved,
         rating: user.rating,
+        settings: user.settings,
       }
     });
   } catch (error) {
@@ -80,11 +81,11 @@ router.post('/verify-otp', async (req, res) => {
 router.get('/me', verifyAuth, async (req, res) => {
   try {
     const user = await User.findById(req.userId);
-    
+
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     res.json({
       id: user._id,
       phone: user.phone,
@@ -95,6 +96,7 @@ router.get('/me', verifyAuth, async (req, res) => {
       totalDistance: user.totalDistance,
       totalSaved: user.totalSaved,
       timeSaved: user.timeSaved,
+      settings: user.settings,
     });
   } catch (error) {
     console.error('Get user error:', error);
@@ -106,26 +108,46 @@ router.get('/me', verifyAuth, async (req, res) => {
 router.post('/me/update', verifyAuth, async (req, res) => {
   try {
     const { name, email } = req.body;
-    
+
     const user = await User.findById(req.userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     if (name) user.name = name;
     if (email) user.email = email;
-    
+    if (req.body.settings) {
+      user.settings = { ...user.settings, ...req.body.settings };
+    }
+
     await user.save();
-    
+
     res.json({
       id: user._id,
       phone: user.phone,
       name: user.name,
       email: user.email,
+      settings: user.settings,
     });
   } catch (error) {
     console.error('Update user error:', error);
     res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// DELETE /api/v1/me - Delete user account
+router.delete('/me', verifyAuth, async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User account deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 

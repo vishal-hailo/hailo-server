@@ -14,11 +14,10 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { API_URL } from '../constants/Config';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-
-// API_URL from environment variable
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+import { getCurrentLocation } from '../utils/LocationUtils';
 
 const LOCATION_TYPES = [
   { value: 'HOME', label: 'Home', icon: 'home' },
@@ -28,11 +27,11 @@ const LOCATION_TYPES = [
 
 export default function LocationsManagerScreen() {
   const router = useRouter();
-  const [locations, setLocations] = useState([]);
+  const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingLocation, setEditingLocation] = useState(null);
-  
+
   // Form state
   const [type, setType] = useState('HOME');
   const [label, setLabel] = useState('');
@@ -63,40 +62,21 @@ export default function LocationsManagerScreen() {
   const detectCurrentLocation = async () => {
     try {
       setDetecting(true);
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to detect your current location.');
-        return;
+      const locationData = await getCurrentLocation();
+
+      if (locationData) {
+        setLatitude(locationData.latitude.toString());
+        setLongitude(locationData.longitude.toString());
+        setAddress(locationData.address);
+
+        if (!label) {
+          setLabel(locationData.label);
+        }
+
+        Alert.alert('Success', 'Current location detected!');
       }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      setLatitude(location.coords.latitude.toFixed(6));
-      setLongitude(location.coords.longitude.toFixed(6));
-
-      // Reverse geocoding to get address
-      const geocode = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-
-      if (geocode.length > 0) {
-        const addr = geocode[0];
-        const fullAddress = [addr.name, addr.street, addr.city, addr.region]
-          .filter(Boolean)
-          .join(', ');
-        setAddress(fullAddress || 'Current Location');
-      } else {
-        setAddress('Current Location');
-      }
-
-      Alert.alert('Success', 'Current location detected!');
     } catch (error) {
       console.error('Location detection error:', error);
-      Alert.alert('Error', 'Failed to detect current location. Please enter manually.');
     } finally {
       setDetecting(false);
     }
@@ -108,7 +88,7 @@ export default function LocationsManagerScreen() {
     setShowAddModal(true);
   };
 
-  const openEditModal = (location) => {
+  const openEditModal = (location: any) => {
     setEditingLocation(location);
     setType(location.type);
     setLabel(location.label);
@@ -153,7 +133,7 @@ export default function LocationsManagerScreen() {
       if (editingLocation) {
         // Update existing location
         await axios.put(
-          `${API_URL}/api/v1/locations/${editingLocation.id}`,
+          `${API_URL}/api/v1/locations/${(editingLocation as any)._id}`,
           payload,
           { headers: { Authorization: `Bearer ${token}` } }
         );
@@ -177,7 +157,7 @@ export default function LocationsManagerScreen() {
     }
   };
 
-  const handleDeleteLocation = async (locationId) => {
+  const handleDeleteLocation = async (locationId: string) => {
     Alert.alert(
       'Delete Location',
       'Are you sure you want to delete this location?',
@@ -204,7 +184,7 @@ export default function LocationsManagerScreen() {
     );
   };
 
-  const getIconForType = (type) => {
+  const getIconForType = (type: string) => {
     const typeObj = LOCATION_TYPES.find(t => t.value === type);
     return typeObj ? typeObj.icon : 'location';
   };
@@ -247,9 +227,9 @@ export default function LocationsManagerScreen() {
         ) : (
           <View style={styles.locationsList}>
             {locations.map((location) => (
-              <View key={location.id} style={styles.locationCard}>
+              <View key={location._id} style={styles.locationCard}>
                 <View style={styles.locationIcon}>
-                  <Ionicons name={getIconForType(location.type)} size={24} color="#FF6B35" />
+                  <Ionicons name={getIconForType(location.type) as any} size={24} color="#FF6B35" />
                 </View>
                 <View style={styles.locationInfo}>
                   <Text style={styles.locationLabel}>{location.label}</Text>
@@ -267,7 +247,7 @@ export default function LocationsManagerScreen() {
                     <Ionicons name="pencil" size={20} color="#3B82F6" />
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => handleDeleteLocation(location.id)}
+                    onPress={() => handleDeleteLocation(location._id)}
                     style={styles.actionButton}
                   >
                     <Ionicons name="trash" size={20} color="#EF4444" />
@@ -311,7 +291,7 @@ export default function LocationsManagerScreen() {
                   onPress={() => setType(locType.value)}
                 >
                   <Ionicons
-                    name={locType.icon}
+                    name={locType.icon as any}
                     size={24}
                     color={type === locType.value ? '#FFFFFF' : '#6B7280'}
                   />

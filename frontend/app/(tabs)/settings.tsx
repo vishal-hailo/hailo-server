@@ -14,12 +14,36 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 import Colors from '../../constants/Colors';
+import { API_URL } from '@/constants/Config';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 
+
+
+// Define SavingsBreakdownItem type
+interface SavingsBreakdownItem {
+  id: string | number;
+  icon: any; // Ionicons name
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  subtitle: string;
+  amount: number;
+}
+
+// Define TopRoute type
+interface TopRoute {
+  id: string | number;
+  from: string;
+  to: string;
+  rides: number;
+  saved: number;
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const { userProfile, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'insights'>('overview');
 
   const [stats, setStats] = useState({
@@ -35,27 +59,20 @@ export default function ProfileScreen() {
       rating: 0,
     }
   });
-  const [savingsBreakdown, setSavingsBreakdown] = useState([]);
-  const [topRoutes, setTopRoutes] = useState([]);
+  const [savingsBreakdown, setSavingsBreakdown] = useState<SavingsBreakdownItem[]>([]);
+  const [topRoutes, setTopRoutes] = useState<TopRoute[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadUserData = useCallback(async () => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem('authToken');
-      const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-      
-      // Fetch user profile
-      const userResponse = await axios.get(`${API_URL}/api/v1/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setUser(userResponse.data);
-      
+
       // Fetch insights
       const insightsResponse = await axios.get(`${API_URL}/api/v1/insights/summary`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       const insightsData = insightsResponse.data;
       setStats({
         totalRides: insightsData.stats.totalRides || 0,
@@ -70,10 +87,10 @@ export default function ProfileScreen() {
           rating: 0,
         }
       });
-      
+
       setSavingsBreakdown(insightsData.savingsBreakdown || []);
       setTopRoutes(insightsData.topRoutes || []);
-      
+
     } catch (error) {
       console.error('Load user data error:', error);
       // Set default values on error
@@ -88,7 +105,7 @@ export default function ProfileScreen() {
     } finally {
       setLoading(false);
     }
-  }, [setUser, setStats, setSavingsBreakdown, setTopRoutes, setLoading]);
+  }, []);
 
   useEffect(() => {
     loadUserData();
@@ -105,12 +122,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await AsyncStorage.multiRemove([
-                'authToken',
-                'user',
-                'locationsSetup',
-                'onboardingCompleted'
-              ]);
+              await signOut();
               router.replace('/auth/phone');
             } catch (error) {
               console.error('Logout error:', error);
@@ -132,8 +144,8 @@ export default function ProfileScreen() {
               <Ionicons name="person" size={32} color={Colors.text.inverse} />
             </View>
             <View style={styles.userDetails}>
-              <Text style={styles.userName}>{user?.name || 'Vishal Rao'}</Text>
-              <Text style={styles.userPhone}>{user?.phone || '+91 98765 43210'}</Text>
+              <Text style={styles.userName}>{userProfile?.name || 'Guest User'}</Text>
+              <Text style={styles.userPhone}>{userProfile?.phone || ''}</Text>
               <View style={styles.ratingContainer}>
                 <Ionicons name="star" size={16} color="#F59E0B" />
                 <Text style={styles.ratingText}>{stats.avgRating} rider rating</Text>
@@ -187,140 +199,140 @@ export default function ProfileScreen() {
           </View>
         ) : (
           <>
-        {/* Content based on active tab */}
-        {activeTab === 'overview' ? (
-          <View style={styles.content}>
-            {/* Stats Grid */}
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="car-sport" size={20} color={Colors.primary.main} />
-                </View>
-                {stats.percentageChange.rides > 0 && (
-                  <View style={styles.percentageTag}>
-                    <Ionicons name="trending-up" size={12} color="#10B981" />
-                    <Text style={styles.percentageText}>+{stats.percentageChange.rides}%</Text>
+            {/* Content based on active tab */}
+            {activeTab === 'overview' ? (
+              <View style={styles.content}>
+                {/* Stats Grid */}
+                <View style={styles.statsGrid}>
+                  <View style={styles.statCard}>
+                    <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
+                      <Ionicons name="car-sport" size={20} color={Colors.primary.main} />
+                    </View>
+                    {stats.percentageChange.rides > 0 && (
+                      <View style={styles.percentageTag}>
+                        <Ionicons name="trending-up" size={12} color="#10B981" />
+                        <Text style={styles.percentageText}>+{stats.percentageChange.rides}%</Text>
+                      </View>
+                    )}
+                    <Text style={styles.statValue}>{stats.totalRides}</Text>
+                    <Text style={styles.statLabel}>Total Rides</Text>
                   </View>
-                )}
-                <Text style={styles.statValue}>{stats.totalRides}</Text>
-                <Text style={styles.statLabel}>Total Rides</Text>
-              </View>
 
-              <View style={styles.statCard}>
-                <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="navigate" size={20} color={Colors.primary.main} />
-                </View>
-                {stats.percentageChange.distance > 0 && (
-                  <View style={styles.percentageTag}>
-                    <Ionicons name="trending-up" size={12} color="#10B981" />
-                    <Text style={styles.percentageText}>+{stats.percentageChange.distance}%</Text>
+                  <View style={styles.statCard}>
+                    <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
+                      <Ionicons name="navigate" size={20} color={Colors.primary.main} />
+                    </View>
+                    {stats.percentageChange.distance > 0 && (
+                      <View style={styles.percentageTag}>
+                        <Ionicons name="trending-up" size={12} color="#10B981" />
+                        <Text style={styles.percentageText}>+{stats.percentageChange.distance}%</Text>
+                      </View>
+                    )}
+                    <Text style={styles.statValue}>{stats.distance} km</Text>
+                    <Text style={styles.statLabel}>Distance</Text>
                   </View>
-                )}
-                <Text style={styles.statValue}>{stats.distance} km</Text>
-                <Text style={styles.statLabel}>Distance</Text>
-              </View>
 
-              <View style={styles.statCard}>
-                <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="time" size={20} color={Colors.primary.main} />
-                </View>
-                {stats.percentageChange.time > 0 && (
-                  <View style={styles.percentageTag}>
-                    <Ionicons name="trending-up" size={12} color="#10B981" />
-                    <Text style={styles.percentageText}>+{stats.percentageChange.time}%</Text>
+                  <View style={styles.statCard}>
+                    <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
+                      <Ionicons name="time" size={20} color={Colors.primary.main} />
+                    </View>
+                    {stats.percentageChange.time > 0 && (
+                      <View style={styles.percentageTag}>
+                        <Ionicons name="trending-up" size={12} color="#10B981" />
+                        <Text style={styles.percentageText}>+{stats.percentageChange.time}%</Text>
+                      </View>
+                    )}
+                    <Text style={styles.statValue}>{stats.timeSaved} hrs</Text>
+                    <Text style={styles.statLabel}>Time Saved</Text>
                   </View>
-                )}
-                <Text style={styles.statValue}>{stats.timeSaved} hrs</Text>
-                <Text style={styles.statLabel}>Time Saved</Text>
-              </View>
 
-              <View style={styles.statCard}>
-                <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="star" size={20} color={Colors.primary.main} />
-                </View>
-                <Text style={styles.statValue}>{stats.avgRating}</Text>
-                <Text style={styles.statLabel}>Avg Rating</Text>
-              </View>
-            </View>
-
-            {/* Smart Savings Breakdown */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Ionicons name="wallet" size={20} color={Colors.primary.main} />
-                <Text style={styles.sectionTitle}>Smart Savings Breakdown</Text>
-              </View>
-
-              {savingsBreakdown.map((item) => (
-                <View key={item.id} style={styles.savingsItem}>
-                  <View style={[styles.savingsIcon, { backgroundColor: item.iconBg }]}>
-                    <Ionicons name={item.icon} size={20} color={item.iconColor} />
+                  <View style={styles.statCard}>
+                    <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
+                      <Ionicons name="star" size={20} color={Colors.primary.main} />
+                    </View>
+                    <Text style={styles.statValue}>{stats.avgRating}</Text>
+                    <Text style={styles.statLabel}>Avg Rating</Text>
                   </View>
-                  <View style={styles.savingsInfo}>
-                    <Text style={styles.savingsTitle}>{item.title}</Text>
-                    <Text style={styles.savingsSubtitle}>{item.subtitle}</Text>
-                  </View>
-                  <Text style={styles.savingsAmount}>₹{item.amount}</Text>
                 </View>
-              ))}
-            </View>
 
-            {/* Top Routes */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Ionicons name="navigate-circle" size={20} color={Colors.primary.main} />
-                <Text style={styles.sectionTitle}>Top Routes</Text>
-              </View>
-
-              {topRoutes.map((route) => (
-                <View key={route.id} style={styles.routeItem}>
-                  <View style={styles.routeNumber}>
-                    <Text style={styles.routeNumberText}>{route.id}</Text>
+                {/* Smart Savings Breakdown */}
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="wallet" size={20} color={Colors.primary.main} />
+                    <Text style={styles.sectionTitle}>Smart Savings Breakdown</Text>
                   </View>
-                  <View style={styles.routeInfo}>
-                    <Text style={styles.routeText}>
-                      {route.from} → {route.to}
-                    </Text>
-                    <Text style={styles.routeRides}>{route.rides} rides</Text>
-                  </View>
-                  <Text style={styles.routeSaved}>saved ₹{route.saved}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        ) : (
-          <View style={styles.content}>
-            {/* Insights Content - Total Saved this Month */}
-            <View style={styles.totalSavedCard}>
-              <Text style={styles.totalSavedLabel}>Total Saved this month</Text>
-              <View style={styles.totalSavedRow}>
-                <Text style={styles.totalSavedAmount}>₹{stats.totalSaved}</Text>
-                <View style={styles.totalSavedBadge}>
-                  <Ionicons name="trending-up" size={14} color="#10B981" />
-                  <Text style={styles.totalSavedPercentage}>+23%</Text>
-                </View>
-              </View>
 
-              <View style={styles.savingsBreakdownList}>
-                <View style={styles.breakdownRow}>
-                  <View style={[styles.breakdownDot, { backgroundColor: '#10B981' }]} />
-                  <Text style={styles.breakdownLabel}>Surge avoided</Text>
-                  <Text style={styles.breakdownAmount}>₹580</Text>
+                  {savingsBreakdown.map((item) => (
+                    <View key={item.id} style={styles.savingsItem}>
+                      <View style={[styles.savingsIcon, { backgroundColor: item.iconBg }]}>
+                        <Ionicons name={item.icon} size={20} color={item.iconColor} />
+                      </View>
+                      <View style={styles.savingsInfo}>
+                        <Text style={styles.savingsTitle}>{item.title}</Text>
+                        <Text style={styles.savingsSubtitle}>{item.subtitle}</Text>
+                      </View>
+                      <Text style={styles.savingsAmount}>₹{item.amount}</Text>
+                    </View>
+                  ))}
                 </View>
-                <View style={styles.breakdownRow}>
-                  <View style={[styles.breakdownDot, { backgroundColor: '#3B82F6' }]} />
-                  <Text style={styles.breakdownLabel}>Weather timing</Text>
-                  <Text style={styles.breakdownAmount}>₹120</Text>
-                </View>
-                <View style={styles.breakdownRow}>
-                  <View style={[styles.breakdownDot, { backgroundColor: '#8B5CF6' }]} />
-                  <Text style={styles.breakdownLabel}>HailO Brain</Text>
-                  <Text style={styles.breakdownAmount}>₹150</Text>
+
+                {/* Top Routes */}
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Ionicons name="navigate-circle" size={20} color={Colors.primary.main} />
+                    <Text style={styles.sectionTitle}>Top Routes</Text>
+                  </View>
+
+                  {topRoutes.map((route) => (
+                    <View key={route.id} style={styles.routeItem}>
+                      <View style={styles.routeNumber}>
+                        <Text style={styles.routeNumberText}>{route.id}</Text>
+                      </View>
+                      <View style={styles.routeInfo}>
+                        <Text style={styles.routeText}>
+                          {route.from} → {route.to}
+                        </Text>
+                        <Text style={styles.routeRides}>{route.rides} rides</Text>
+                      </View>
+                      <Text style={styles.routeSaved}>saved ₹{route.saved}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
-            </View>
-          </View>
-        )}
-        </>
+            ) : (
+              <View style={styles.content}>
+                {/* Insights Content - Total Saved this Month */}
+                <View style={styles.totalSavedCard}>
+                  <Text style={styles.totalSavedLabel}>Total Saved this month</Text>
+                  <View style={styles.totalSavedRow}>
+                    <Text style={styles.totalSavedAmount}>₹{stats.totalSaved}</Text>
+                    <View style={styles.totalSavedBadge}>
+                      <Ionicons name="trending-up" size={14} color="#10B981" />
+                      <Text style={styles.totalSavedPercentage}>+23%</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.savingsBreakdownList}>
+                    <View style={styles.breakdownRow}>
+                      <View style={[styles.breakdownDot, { backgroundColor: '#10B981' }]} />
+                      <Text style={styles.breakdownLabel}>Surge avoided</Text>
+                      <Text style={styles.breakdownAmount}>₹580</Text>
+                    </View>
+                    <View style={styles.breakdownRow}>
+                      <View style={[styles.breakdownDot, { backgroundColor: '#3B82F6' }]} />
+                      <Text style={styles.breakdownLabel}>Weather timing</Text>
+                      <Text style={styles.breakdownAmount}>₹120</Text>
+                    </View>
+                    <View style={styles.breakdownRow}>
+                      <View style={[styles.breakdownDot, { backgroundColor: '#8B5CF6' }]} />
+                      <Text style={styles.breakdownLabel}>HailO Brain</Text>
+                      <Text style={styles.breakdownAmount}>₹150</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+          </>
         )}
 
         {/* Menu Items */}
@@ -382,7 +394,7 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  
+
   // Header
   header: {
     flexDirection: 'row',

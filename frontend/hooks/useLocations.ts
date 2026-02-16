@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+import { API_URL } from '../constants/Config';
 
 export interface Location {
   _id: string;
@@ -41,7 +40,7 @@ export const useLocations = () => {
       setLoading(true);
       setError(null);
       const headers = await getAuthHeader();
-      
+
       const response = await axios.get(`${API_URL}/api/v1/locations`, { headers });
       setLocations(response.data);
       return response.data;
@@ -61,7 +60,7 @@ export const useLocations = () => {
       setLoading(true);
       setError(null);
       const headers = await getAuthHeader();
-      
+
       const response = await axios.post(`${API_URL}/api/v1/locations`, data, { headers });
       setLocations(prev => [...prev, response.data]);
       return response.data;
@@ -81,7 +80,7 @@ export const useLocations = () => {
       setLoading(true);
       setError(null);
       const headers = await getAuthHeader();
-      
+
       const response = await axios.put(`${API_URL}/api/v1/locations/${id}`, data, { headers });
       setLocations(prev => prev.map(loc => loc._id === id ? response.data : loc));
       return response.data;
@@ -101,7 +100,7 @@ export const useLocations = () => {
       setLoading(true);
       setError(null);
       const headers = await getAuthHeader();
-      
+
       await axios.delete(`${API_URL}/api/v1/locations/${id}`, { headers });
       setLocations(prev => prev.filter(loc => loc._id !== id));
       return true;

@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Colors from '../../constants/Colors';
+import { useSettings } from '../../contexts/SettingsContext';
 
 interface NotificationItemProps {
   title: string;
@@ -41,19 +42,11 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const [settings, setSettings] = useState({
-    surgeAlerts: true,
-    priceDrops: true,
-    rideReminders: true,
-    promotions: false,
-    weeklyReports: true,
-    pushNotifications: true,
-    emailNotifications: false,
-    smsNotifications: false,
-  });
+  const { settings, updateSetting: updateContextSetting } = useSettings();
 
-  const updateSetting = (key: keyof typeof settings, value: boolean) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+  // Helper to update notification settings
+  const updateSetting = (key: string, value: boolean) => {
+    updateContextSetting('notifications', { [key]: value });
   };
 
   return (
@@ -75,31 +68,31 @@ export default function NotificationsScreen() {
             <NotificationItem
               title="Surge Alerts"
               subtitle="Get notified when surge pricing changes"
-              value={settings.surgeAlerts}
+              value={settings.notifications.surgeAlerts}
               onValueChange={(v) => updateSetting('surgeAlerts', v)}
             />
             <NotificationItem
               title="Price Drops"
               subtitle="Alert when ride prices decrease"
-              value={settings.priceDrops}
+              value={settings.notifications.priceDrops}
               onValueChange={(v) => updateSetting('priceDrops', v)}
             />
             <NotificationItem
               title="Ride Reminders"
               subtitle="Reminders for scheduled rides"
-              value={settings.rideReminders}
+              value={settings.notifications.rideReminders}
               onValueChange={(v) => updateSetting('rideReminders', v)}
             />
             <NotificationItem
               title="Promotions & Offers"
               subtitle="Special deals and discounts"
-              value={settings.promotions}
+              value={settings.notifications.promotions}
               onValueChange={(v) => updateSetting('promotions', v)}
             />
             <NotificationItem
               title="Weekly Reports"
               subtitle="Summary of your rides and savings"
-              value={settings.weeklyReports}
+              value={settings.notifications.weeklyReports}
               onValueChange={(v) => updateSetting('weeklyReports', v)}
             />
           </View>
@@ -112,19 +105,19 @@ export default function NotificationsScreen() {
             <NotificationItem
               title="Push Notifications"
               subtitle="Receive alerts on your device"
-              value={settings.pushNotifications}
+              value={settings.notifications.pushNotifications}
               onValueChange={(v) => updateSetting('pushNotifications', v)}
             />
             <NotificationItem
               title="Email Notifications"
               subtitle="Receive alerts via email"
-              value={settings.emailNotifications}
+              value={settings.notifications.emailNotifications}
               onValueChange={(v) => updateSetting('emailNotifications', v)}
             />
             <NotificationItem
               title="SMS Notifications"
               subtitle="Receive alerts via text message"
-              value={settings.smsNotifications}
+              value={settings.notifications.smsNotifications}
               onValueChange={(v) => updateSetting('smsNotifications', v)}
             />
           </View>

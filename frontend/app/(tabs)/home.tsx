@@ -13,7 +13,9 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { Ionicons } from '@expo/vector-icons';
+import { API_URL } from '../../constants/Config';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+// RefreshControl is already imported from react-native above line 9
 
 const Colors = {
   primary: {
@@ -51,7 +53,7 @@ const Colors = {
 };
 
 // Inline PillBadge component
-const PillBadge = ({ label, variant }) => {
+const PillBadge = ({ label, variant }: { label: string; variant: string }) => {
   const getVariantStyles = () => {
     switch (variant) {
       case 'surge-none':
@@ -77,7 +79,7 @@ const PillBadge = ({ label, variant }) => {
 };
 
 // Inline RoundIcon component
-const RoundIcon = ({ icon, backgroundColor, size = 48 }) => {
+const RoundIcon = ({ icon, backgroundColor, size = 48 }: { icon: React.ReactNode; backgroundColor: string; size?: number }) => {
   return (
     <View style={[styles.roundIcon, { backgroundColor, width: size, height: size, borderRadius: size / 2 }]}>
       {icon}
@@ -85,8 +87,7 @@ const RoundIcon = ({ icon, backgroundColor, size = 48 }) => {
   );
 };
 
-// API_URL from environment variable
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
+
 
 type RideType = 'car' | 'rickshaw' | 'bike';
 
@@ -115,7 +116,7 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem('authToken');
-      
+
       if (!token) {
         console.log('No auth token found');
         setLoading(false);
@@ -144,12 +145,21 @@ export default function HomeScreen() {
       const insightsResponse = await axios.get(`${API_URL}/api/v1/insights/summary`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setStats({ totalSaved: insightsResponse.data.stats.totalSaved || 0 });
+      // Handle different response structures gracefully
+      const totalSavedValue = insightsResponse.data.stats?.totalSaved ?? insightsResponse.data.totalSaved ?? 0;
+      setStats({ totalSaved: totalSavedValue });
 
-    } catch (error) {
-      console.error('Load user data error:', error);
-      // Set default empty values on error
-      setUser(null);
+      // Fetch surge forecast
+      const surgeResponse = await axios.get(`${API_URL}/api/v1/surge/forecast`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (surgeResponse.data.forecast) {
+        setSurgeData(surgeResponse.data.forecast);
+      }
+
+    } catch (error: any) {
+      console.error('Load user data error:', error.message);
+      // Fallback empty values
       setLocations([]);
       setRecommendations([]);
     } finally {
@@ -268,8 +278,8 @@ export default function HomeScreen() {
                 <Ionicons name="checkmark" size={16} color={Colors.text.inverse} />
               </View>
             )}
-            <Ionicons
-              name="bicycle-outline"
+            <MaterialCommunityIcons
+              name="rickshaw"
               size={32}
               color={selectedRideType === 'rickshaw' ? Colors.text.inverse : Colors.text.secondary}
             />
@@ -309,6 +319,56 @@ export default function HomeScreen() {
               Bike
             </Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickGrid}>
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => router.push('/search')}
+            >
+              <RoundIcon
+                icon={<Ionicons name="search" size={24} color={Colors.primary.main} />}
+                backgroundColor={Colors.primary.subtle}
+              />
+              <Text style={styles.actionLabel}>Plan Ride</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => router.push('/surge-radar')}
+            >
+              <RoundIcon
+                icon={<Ionicons name="map" size={24} color="#10B981" />}
+                backgroundColor="#D1FAE5"
+              />
+              <Text style={styles.actionLabel}>Radar</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => router.push('/locations-manager')}
+            >
+              <RoundIcon
+                icon={<Ionicons name="location" size={24} color="#F59E0B" />}
+                backgroundColor="#FEF3C7"
+              />
+              <Text style={styles.actionLabel}>My Places</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => router.push('/(tabs)/ride-tracking')}
+            >
+              <RoundIcon
+                icon={<Ionicons name="time" size={24} color="#6366F1" />}
+                backgroundColor="#E0E7FF"
+              />
+              <Text style={styles.actionLabel}>Schedule</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* HailO Brain - Smart Recommendation */}
@@ -393,10 +453,10 @@ export default function HomeScreen() {
               <TouchableOpacity key={location._id} style={styles.quickBookCard}>
                 <RoundIcon
                   icon={
-                    <Ionicons 
-                      name={location.type === 'HOME' ? 'home' : location.type === 'OFFICE' ? 'briefcase' : 'location'} 
-                      size={24} 
-                      color={Colors.primary.main} 
+                    <Ionicons
+                      name={location.type === 'HOME' ? 'home' : location.type === 'OFFICE' ? 'briefcase' : 'location'}
+                      size={24}
+                      color={Colors.primary.main}
                     />
                   }
                   backgroundColor={Colors.primary.subtle}
@@ -414,7 +474,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))
           ) : (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.quickBookCard}
               onPress={() => router.push('/location-setup')}
             >
@@ -433,7 +493,7 @@ export default function HomeScreen() {
         </View>
 
         {/* This Month - Savings */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.savingsCard}
           onPress={() => router.push('/(tabs)/settings')}
         >
@@ -592,6 +652,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     position: 'relative',
+  },
+
+  // Quick Grid Styles
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 16,
+  },
+  actionCard: {
+    width: '22%', // Roughly 4 items per row
+    backgroundColor: Colors.background.card,
+    borderRadius: 16,
+    paddingVertical: 16,
+    alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  actionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    textAlign: 'center',
   },
   rideTypeCardActive: {
     backgroundColor: Colors.primary.dark,
@@ -862,7 +949,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.text.primary,
   },
-  
+
   // Pill Badge Styles
   pill: {
     flexDirection: 'row',
@@ -876,7 +963,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  
+
   // Round Icon Styles
   roundIcon: {
     justifyContent: 'center',

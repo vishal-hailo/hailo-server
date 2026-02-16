@@ -17,20 +17,24 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../contexts/AuthContext';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { firebaseConfig } from '../../config/firebase';
+import Constants from 'expo-constants';
 import Colors from '../../constants/Colors';
 
 const { width } = Dimensions.get('window');
-const OTP_LENGTH = 4;
+const OTP_LENGTH = 6;
 
 export default function OTPScreen() {
   const router = useRouter();
   const { phone, verificationId } = useLocalSearchParams<{ phone: string; verificationId: string }>();
   const { verifyOTP, loading: authLoading, sendOTP } = useAuth();
-  
-  const [otp, setOtp] = useState(['', '', '', '']);
+
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(30);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+  const recaptchaVerifier = useRef(null);
 
   // Store the phone number when the page loads
   useEffect(() => {
@@ -58,7 +62,7 @@ export default function OTPScreen() {
         }
       });
       setOtp(newOtp);
-      
+
       // Focus last filled input or next empty
       const lastFilledIndex = Math.min(index + otpArray.length - 1, OTP_LENGTH - 1);
       inputRefs.current[lastFilledIndex]?.focus();
@@ -83,7 +87,7 @@ export default function OTPScreen() {
 
   const handleVerify = async () => {
     const otpString = otp.join('');
-    
+
     if (otpString.length !== OTP_LENGTH) {
       Alert.alert('Invalid OTP', `Please enter the ${OTP_LENGTH}-digit OTP`);
       return;
@@ -94,12 +98,12 @@ export default function OTPScreen() {
       console.log('Verifying OTP:', otpString);
       const result = await verifyOTP(verificationId || 'firebase', otpString);
       console.log('Verify result:', result);
-      
+
       if (result.success) {
         // Check if user needs to complete registration
         const user = await AsyncStorage.getItem('user');
         const userData = user ? JSON.parse(user) : null;
-        
+
         if (userData?.name) {
           // Existing user with name, check for locations setup
           const locationsSetup = await AsyncStorage.getItem('locationsSetup');
@@ -129,14 +133,14 @@ export default function OTPScreen() {
 
   const handleResend = async () => {
     if (resendTimer > 0) return;
-    
+
     try {
       setLoading(true);
-      const result = await sendOTP(phone || '');
-      
+      const result = await sendOTP(phone || '', recaptchaVerifier.current);
+
       if (result.success) {
         setResendTimer(30);
-        setOtp(['', '', '', '']);
+        setOtp(['', '', '', '', '', '']);
         inputRefs.current[0]?.focus();
         Alert.alert('Success', 'OTP sent successfully!');
       } else {
@@ -170,8 +174,8 @@ export default function OTPScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity 
-              onPress={() => router.back()} 
+            <TouchableOpacity
+              onPress={() => router.back()}
               style={styles.backButton}
               disabled={isLoading}
             >
@@ -190,7 +194,7 @@ export default function OTPScreen() {
             {/* Title */}
             <Text style={styles.title}>Verify your number</Text>
             <Text style={styles.subtitle}>
-              Enter the 4-digit code sent to{'\n'}
+              Enter the 6-digit code sent to{'\n'}
               <Text style={styles.phoneText}>{phone}</Text>
             </Text>
 
@@ -199,7 +203,7 @@ export default function OTPScreen() {
               {otp.map((digit, index) => (
                 <TextInput
                   key={index}
-                  ref={(ref) => (inputRefs.current[index] = ref)}
+                  ref={(ref) => { inputRefs.current[index] = ref; }}
                   style={[
                     styles.otpInput,
                     digit && styles.otpInputFilled,
@@ -215,11 +219,7 @@ export default function OTPScreen() {
               ))}
             </View>
 
-            {/* Info message */}
-            <View style={styles.hintContainer}>
-              <Ionicons name="information-circle" size={16} color={Colors.success} />
-              <Text style={styles.hintText}>Demo mode: Use OTP 1234</Text>
-            </View>
+
 
             {/* Verify Button */}
             <TouchableOpacity
@@ -241,8 +241,8 @@ export default function OTPScreen() {
             {/* Resend */}
             <View style={styles.resendContainer}>
               <Text style={styles.resendText}>Didn't receive the code? </Text>
-              <TouchableOpacity 
-                onPress={handleResend} 
+              <TouchableOpacity
+                onPress={handleResend}
                 disabled={resendTimer > 0 || isLoading}
               >
                 <Text style={[
@@ -255,8 +255,13 @@ export default function OTPScreen() {
             </View>
           </View>
         </KeyboardAvoidingView>
+
+        <FirebaseRecaptchaVerifierModal
+          ref={recaptchaVerifier}
+          firebaseConfig={firebaseConfig}
+        />
       </SafeAreaView>
-    </View>
+    </View >
   );
 }
 
@@ -349,17 +354,17 @@ const styles = StyleSheet.create({
   otpContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
+    gap: 8,
     marginBottom: 16,
   },
   otpInput: {
-    width: 56,
-    height: 64,
+    width: 48,
+    height: 60,
     backgroundColor: Colors.background.card,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: Colors.border.light,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: Colors.text.primary,
     textAlign: 'center',

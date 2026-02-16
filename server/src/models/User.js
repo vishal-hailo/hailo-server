@@ -36,6 +36,52 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  settings: {
+    notifications: {
+      surgeAlerts: { type: Boolean, default: true },
+      priceDrops: { type: Boolean, default: true },
+      rideReminders: { type: Boolean, default: true },
+      promotions: { type: Boolean, default: false },
+      weeklyReports: { type: Boolean, default: true },
+      pushNotifications: { type: Boolean, default: true },
+      emailNotifications: { type: Boolean, default: false },
+      smsNotifications: { type: Boolean, default: false }
+    },
+    shareLocation: {
+      type: Boolean,
+      default: true
+    },
+    shareRideHistory: {
+      type: Boolean,
+      default: false
+    },
+    personalizedAds: {
+      type: Boolean,
+      default: false
+    },
+    analyticsSharing: {
+      type: Boolean,
+      default: true
+    },
+    language: {
+      type: String,
+      default: 'en'
+    },
+    theme: {
+      type: String,
+      default: 'system'
+    }
+  },
+  linkedAccounts: {
+    uber: {
+      accessToken: String,
+      refreshToken: String,
+      expiresAt: Date,
+      tokenType: String,
+      scope: String,
+      linkedAt: Date
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -46,7 +92,7 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-userSchema.pre('save', async function() {
+userSchema.pre('save', async function () {
   this.updatedAt = Date.now();
 });
 

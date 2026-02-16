@@ -12,19 +12,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Colors from '../../constants/Colors';
+import { useSettings } from '../../contexts/SettingsContext';
 
 export default function PrivacyScreen() {
   const router = useRouter();
-  const [settings, setSettings] = useState({
-    shareRideHistory: false,
-    shareLocation: true,
-    personalizedAds: false,
-    analyticsSharing: true,
-  });
-
-  const updateSetting = (key: keyof typeof settings, value: boolean) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
-  };
+  const { settings, updateSetting } = useSettings();
 
   const handleClearHistory = () => {
     Alert.alert(

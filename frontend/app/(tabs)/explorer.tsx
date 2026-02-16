@@ -12,12 +12,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { API_URL } from '../../constants/Config';
 import Colors from '../../constants/Colors';
 
 // Day Selector Component
 const DaySelector = ({ days }: { days: boolean[] }) => {
   const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  
+
   return (
     <View style={styles.daySelector}>
       {dayLabels.map((label, index) => (
@@ -73,18 +74,17 @@ export default function ScheduleScreen() {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem('authToken');
-      const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-      
+
       // Fetch upcoming rides
       const upcomingResponse = await axios.get(`${API_URL}/api/v1/rides/upcoming`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       // Fetch all rides to filter recurring ones
       const allRidesResponse = await axios.get(`${API_URL}/api/v1/rides?type=RECURRING`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       setUpcomingRides(upcomingResponse.data);
       setRecurringRides(allRidesResponse.data);
     } catch (error) {
@@ -176,9 +176,9 @@ export default function ScheduleScreen() {
                     </View>
                   </View>
 
-                  <RouteIndicator 
-                    from={ride.from.label || ride.from.address} 
-                    to={ride.to.label || ride.to.address} 
+                  <RouteIndicator
+                    from={ride.from.label || ride.from.address}
+                    to={ride.to.label || ride.to.address}
                   />
 
                   <View style={styles.upcomingFooter}>
@@ -196,7 +196,7 @@ export default function ScheduleScreen() {
                 <Text style={styles.emptyStateSubtitle}>Schedule a ride to see it here</Text>
               </View>
             )}
-            
+
             {/* Schedule a Ride CTA */}
             <TouchableOpacity style={styles.ctaCard}>
               <View style={styles.ctaIcon}>
@@ -247,9 +247,9 @@ export default function ScheduleScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  <RouteIndicator 
-                    from={ride.from.label || ride.from.address} 
-                    to={ride.to.label || ride.to.address} 
+                  <RouteIndicator
+                    from={ride.from.label || ride.from.address}
+                    to={ride.to.label || ride.to.address}
                   />
 
                   <DaySelector days={ride.recurringPattern?.days || [false, false, false, false, false, false, false]} />

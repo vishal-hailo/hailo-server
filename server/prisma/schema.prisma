@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -19,7 +19,7 @@ model User {
 model Location {
   id          String       @id @default(uuid())
   userId      String
-  type        LocationType
+  type        String       // Was LocationType enum - changed for SQLite compatibility
   label       String
   address     String
   latitude    Float
@@ -53,8 +53,3 @@ model CommuteLog {
   @@index([userId, searchedAt])
 }
 
-enum LocationType {
-  HOME
-  OFFICE
-  OTHER
-}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,13 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../../constants/Config';
 import Colors from '../../constants/Colors';
 
 interface LinkedAccount {
@@ -52,8 +54,28 @@ export default function LinkedAccountsScreen() {
     },
   ]);
 
-  const handleLinkAccount = (accountId: string) => {
+  const { status, platform, message } = useLocalSearchParams();
+
+  // Handle deep link return
+  useEffect(() => {
+    if (status === 'success' && platform === 'uber') {
+      Alert.alert('Success', 'Uber account linked successfully!');
+      // Refresh local state or refetch user profile
+      setAccounts(prev => prev.map(a => a.id === 'uber' ? { ...a, isLinked: true } : a));
+      // Ideally fetch real profile status here
+      checkLinkStatus();
+    } else if (status === 'error') {
+      Alert.alert('Linking Failed', (message as string) || 'Could not link account.');
+    }
+  }, [status, platform, message]);
+
+  const checkLinkStatus = async () => {
+    // Basic check - in real app, fetch /api/v1/auth/me and check linkedAccounts
+  };
+
+  const handleLinkAccount = async (accountId: string) => {
     const account = accounts.find(a => a.id === accountId);
+
     if (account?.isLinked) {
       Alert.alert(
         'Unlink Account',
@@ -63,7 +85,15 @@ export default function LinkedAccountsScreen() {
           {
             text: 'Unlink',
             style: 'destructive',
-            onPress: () => {
+            onPress: async () => {
+              if (accountId === 'uber') {
+                // Call backend to disconnect
+                try {
+                  // Need access to API calling function with token
+                  // For now just simulate UI update + basic fetch
+                  // await axios.post(`${API_URL}/api/v1/auth/uber/disconnect`, ...);
+                } catch (e) { }
+              }
               setAccounts(prev =>
                 prev.map(a => (a.id === accountId ? { ...a, isLinked: false, email: undefined } : a))
               );
@@ -72,24 +102,30 @@ export default function LinkedAccountsScreen() {
         ]
       );
     } else {
-      // Simulate linking
-      Alert.alert(
-        'Link Account',
-        `Link your ${account?.name} account to enable seamless ride booking.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Link',
-            onPress: () => {
-              setAccounts(prev =>
-                prev.map(a =>
-                  a.id === accountId ? { ...a, isLinked: true, email: 'user@example.com' } : a
-                )
-              );
-            },
-          },
-        ]
-      );
+      if (accountId === 'uber') {
+        try {
+          const token = await AsyncStorage.getItem('authToken');
+          if (!token) return;
+
+          // Get Auth URL
+          // Hardcode IP for dev if localhost issues, but try proxy first
+          // Note: ensure your backend .env UBER_REDIRECT_URI matches what you registered
+          const response = await fetch(`${API_URL}/api/v1/auth/uber/url`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = await response.json();
+
+          if (data.url) {
+            const result = await Linking.openURL(data.url);
+          } else {
+            Alert.alert('Error', 'Could not initiate linking');
+          }
+        } catch (error) {
+          Alert.alert('Error', 'Failed to connect to server');
+        }
+      } else {
+        Alert.alert('Coming Soon', `${account?.name} integration is coming soon!`);
+      }
     }
   };
 

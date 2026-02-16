@@ -70,7 +70,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      
+
       {/* Hide unused tabs */}
       <Tabs.Screen
         name="insights"

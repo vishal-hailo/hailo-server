@@ -15,6 +15,10 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { API_URL } from '../constants/Config';
+import { getCurrentLocation } from '../utils/LocationUtils';
 
 // Simple predefined locations for Mumbai
 const POPULAR_LOCATIONS = [
@@ -37,7 +41,12 @@ const POPULAR_LOCATIONS = [
 
 export default function PlanRideScreen() {
     const router = useRouter();
-    const params = useLocalSearchParams();
+    const params = useLocalSearchParams<{
+        destLat?: string;
+        destLng?: string;
+        destLabel?: string;
+        destAddress?: string;
+    }>();
 
     // State
     const [originQuery, setOriginQuery] = useState('');
@@ -50,81 +59,103 @@ export default function PlanRideScreen() {
     const [destLocation, setDestLocation] = useState<any>(null);
 
     const [loadingCurrentLocation, setLoadingCurrentLocation] = useState(false);
+    const [savedLocations, setSavedLocations] = useState<any[]>([]);
 
     // Refs for inputs to manage focus
     const originInputRef = useRef<TextInput>(null);
     const destInputRef = useRef<TextInput>(null);
+    const hasInitialized = useRef(false);
 
-    // Initialize
+    // Initialize screen from params
     useEffect(() => {
-        // If params has pre-filled locations (e.g. from saved locations)
-        // For now we'll assume fresh start or handle specifically
+        loadSavedLocations();
 
-        // Default origin to "Current Location" placeholder logic could go here
-        // checking permissions etc.
-        // For this prototype, we'll leave it empty or user types.
+        if (hasInitialized.current) return;
 
-        // Auto-focus destination
-        setTimeout(() => {
-            destInputRef.current?.focus();
-        }, 500);
-    }, []);
+        const { destLat, destLng, destLabel, destAddress } = params;
+
+        if (destLat && destLng) {
+            const prefilledDest = {
+                label: destLabel || 'Destination',
+                address: destAddress || '',
+                latitude: parseFloat(destLat),
+                longitude: parseFloat(destLng),
+            };
+            setDestLocation(prefilledDest);
+            setDestQuery(prefilledDest.label);
+
+            // If we have destination, focus origin to get the starting point
+            setFocusedInput('origin');
+            setTimeout(() => {
+                originInputRef.current?.focus();
+            }, 300);
+            hasInitialized.current = true;
+        } else {
+            // Auto-focus destination if starting fresh
+            setTimeout(() => {
+                destInputRef.current?.focus();
+            }, 500);
+            hasInitialized.current = true;
+        }
+    }, [params.destLat, params.destLng, params.destLabel, params.destAddress]);
+
+    const loadSavedLocations = async () => {
+        try {
+            const token = await AsyncStorage.getItem('authToken');
+            if (!token) return;
+
+            const response = await axios.get(`${API_URL}/api/v1/locations`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setSavedLocations(response.data);
+        } catch (error) {
+            console.error('Load saved locations error:', error);
+        }
+    };
+
+    // Combined locations for search
+    const allLocations = [...savedLocations, ...POPULAR_LOCATIONS];
+    const uniqueLocations = allLocations.filter((v, i, a) =>
+        a.findIndex(t => t.address === v.address) === i
+    );
 
     // Filtering
     useEffect(() => {
         if (originQuery) {
-            setOriginResults(POPULAR_LOCATIONS.filter(l =>
-                l.label.toLowerCase().includes(originQuery.toLowerCase()) ||
-                l.address.toLowerCase().includes(originQuery.toLowerCase())
+            setOriginResults(uniqueLocations.filter(l =>
+                l.label?.toLowerCase().includes(originQuery.toLowerCase()) ||
+                l.address?.toLowerCase().includes(originQuery.toLowerCase())
             ));
         } else {
-            setOriginResults(POPULAR_LOCATIONS);
+            setOriginResults(uniqueLocations);
         }
-    }, [originQuery]);
+    }, [originQuery, savedLocations]);
 
     useEffect(() => {
         if (destQuery) {
-            setDestResults(POPULAR_LOCATIONS.filter(l =>
-                l.label.toLowerCase().includes(destQuery.toLowerCase()) ||
-                l.address.toLowerCase().includes(destQuery.toLowerCase())
+            setDestResults(uniqueLocations.filter(l =>
+                l.label?.toLowerCase().includes(destQuery.toLowerCase()) ||
+                l.address?.toLowerCase().includes(destQuery.toLowerCase())
             ));
         } else {
-            setDestResults(POPULAR_LOCATIONS);
+            setDestResults(uniqueLocations);
         }
-    }, [destQuery]);
+    }, [destQuery, savedLocations]);
 
     const handleGetCurrentLocation = async () => {
         setLoadingCurrentLocation(true);
         try {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                alert('Location permission denied');
-                setLoadingCurrentLocation(false);
-                return;
+            const locationData = await getCurrentLocation();
+            if (locationData) {
+                setOriginLocation(locationData);
+                setOriginQuery('Current Location');
+
+                // Move focus to destination
+                setFocusedInput('dest');
+                destInputRef.current?.focus();
             }
-            const loc = await Location.getCurrentPositionAsync({});
-            const geocode = await Location.reverseGeocodeAsync({
-                latitude: loc.coords.latitude,
-                longitude: loc.coords.longitude
-            });
-            const address = geocode[0];
-            const locationData = {
-                label: 'Current Location',
-                address: `${address.street || ''}, ${address.city || ''}`,
-                latitude: loc.coords.latitude,
-                longitude: loc.coords.longitude
-            };
-
-            setOriginLocation(locationData);
-            setOriginQuery('Current Location');
-
-            // Move focus to destination
-            setFocusedInput('dest');
-            destInputRef.current?.focus();
-
         } catch (error) {
             console.error(error);
-            alert('Failed to get location');
         } finally {
             setLoadingCurrentLocation(false);
         }
@@ -152,8 +183,19 @@ export default function PlanRideScreen() {
     };
 
     const navigateToSurgeRadar = (origin: any, dest: any) => {
-        if (!origin || !dest) return; // Should allow current location if not explicitly set? 
-        // If origin is null but query is empty, maybe force user to pick one.
+        if (!origin || !dest) {
+            // If they just typed something, try to match from uniqueLocations
+            const matchedOrigin = origin || uniqueLocations.find(l => l.label === originQuery);
+            const matchedDest = dest || uniqueLocations.find(l => l.label === destQuery);
+
+            if (!matchedOrigin || !matchedDest) {
+                Alert.alert('Incomplete Trip', 'Please select both locations from the list to see surge data.');
+                return;
+            }
+
+            origin = matchedOrigin;
+            dest = matchedDest;
+        }
 
         router.push({
             pathname: '/surge-radar',
@@ -260,6 +302,16 @@ export default function PlanRideScreen() {
                 keyboardShouldPersistTaps="handled"
                 contentContainerStyle={styles.listContent}
             />
+
+            {(originQuery && destQuery) && (
+                <TouchableOpacity
+                    style={styles.proceedButton}
+                    onPress={() => navigateToSurgeRadar(originLocation, destLocation)}
+                >
+                    <Text style={styles.proceedButtonText}>See Surge Prices</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+            )}
 
         </SafeAreaView>
     );
@@ -383,5 +435,28 @@ const styles = StyleSheet.create({
     resultAddress: {
         fontSize: 14,
         color: '#6B7280',
+    },
+    proceedButton: {
+        position: 'absolute',
+        bottom: 30,
+        left: 20,
+        right: 20,
+        backgroundColor: '#FF6B35',
+        height: 56,
+        borderRadius: 28,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 5,
+        gap: 8,
+    },
+    proceedButtonText: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: '700',
     },
 });

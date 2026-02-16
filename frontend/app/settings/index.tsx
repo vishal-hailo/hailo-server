@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '../../constants/Colors';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface SettingsItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -44,6 +45,7 @@ const SettingsItem: React.FC<SettingsItemProps> = ({
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { deleteAccount } = useAuth();
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -56,12 +58,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await AsyncStorage.multiRemove([
-                'authToken',
-                'user',
-                'locationsSetup',
-                'onboardingCompleted',
-              ]);
+              await deleteAccount();
               router.replace('/auth/phone');
             } catch (error) {
               Alert.alert('Error', 'Failed to delete account');

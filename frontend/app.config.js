@@ -17,7 +17,7 @@ export default {
       "expo-router"
     ],
     extra: {
-      EXPO_PUBLIC_BACKEND_URL: process.env.EXPO_PUBLIC_BACKEND_URL || ""
+      EXPO_PUBLIC_BACKEND_URL: process.env.EXPO_PUBLIC_BACKEND_URL || "http://localhost:3001"
     }
   }
 };

@@ -6,32 +6,18 @@ import {
   sendSignInLinkToEmail,
   isSignInWithEmailLink,
   signInWithEmailLink,
+  signInWithPhoneNumber,
+  PhoneAuthProvider,
+  signInWithCredential,
 } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { API_URL } from '../constants/Config';
 
-// Get the API URL based on platform
-const getApiUrl = (): string => {
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.location) {
-      const hostname = window.location.hostname;
-      if (hostname.includes('preview.emergentagent.com') || hostname.includes('devtunnels.ms')) {
-        return window.location.origin;
-      }
-      if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        return `http://${hostname}:8001`;
-      }
-      return window.location.origin;
-    }
-  }
-  return process.env.EXPO_PUBLIC_BACKEND_URL || Constants.expoConfig?.extra?.backendUrl || '';
-};
-
-const API_URL = getApiUrl();
-console.log('AuthContext API_URL:', API_URL);
+console.log('AuthContext using API_URL:', API_URL);
 
 interface AuthContextType {
   user: User | null;
@@ -40,7 +26,7 @@ interface AuthContextType {
   initialized: boolean;
   error: string | null;
   // Phone Auth
-  sendOTP: (phoneNumber: string) => Promise<{ success: boolean; verificationId?: string; error?: string }>;
+  sendOTP: (phoneNumber: string, recaptchaVerifier: any) => Promise<{ success: boolean; verificationId?: string; error?: string }>;
   verifyOTP: (verificationId: string, otp: string) => Promise<{ success: boolean; error?: string }>;
   // Email Auth
   sendEmailLink: (email: string) => Promise<{ success: boolean; error?: string }>;
@@ -49,6 +35,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   refreshUserProfile: () => Promise<void>;
   updateUserProfile: (data: { name?: string; email?: string }) => Promise<void>;
+  deleteAccount: () => Promise<void>;
 }
 
 interface UserProfile {
@@ -61,6 +48,7 @@ interface UserProfile {
   totalDistance: number;
   totalSaved: number;
   timeSaved: number;
+  settings?: any;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -89,7 +77,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('Auth state changed:', firebaseUser?.phoneNumber || firebaseUser?.email || 'No user');
       setUser(firebaseUser);
-      
+
       if (firebaseUser) {
         try {
           const idToken = await firebaseUser.getIdToken();
@@ -102,7 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await AsyncStorage.removeItem('authToken');
         await AsyncStorage.removeItem('user');
       }
-      
+
       setLoading(false);
       setInitialized(true);
     });
@@ -113,6 +101,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Sync Firebase user with our backend
   const syncWithBackend = async (firebaseIdToken: string) => {
     try {
+      console.log('Syncing with backend at:', `${API_URL}/api/v1/auth/firebase-login`);
       const response = await axios.post(`${API_URL}/api/v1/auth/firebase-login`, {
         firebaseIdToken,
       });
@@ -121,38 +110,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await AsyncStorage.setItem('authToken', response.data.token);
         await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
         setUserProfile(response.data.user);
+        console.log('✅ Backend sync successful');
       }
     } catch (err: any) {
-      console.error('Backend sync error:', err.response?.data || err.message);
+      const errorDetail = err.response?.data?.error || err.response?.data?.message || err.message;
+      console.error('Backend sync error:', errorDetail);
+      throw new Error(`Backend sync error: ${errorDetail}`);
     }
   };
 
-  // Send OTP using backend mock (for development/Expo Go)
-  // In production with a proper build, you would use Firebase Phone Auth
-  const sendOTP = async (phoneNumber: string): Promise<{ success: boolean; verificationId?: string; error?: string }> => {
+  // Send OTP using Firebase Phone Auth
+  const sendOTP = async (phoneNumber: string, recaptchaVerifier: any): Promise<{ success: boolean; verificationId?: string; error?: string }> => {
     try {
       setLoading(true);
       setError(null);
 
       console.log('Sending OTP to:', phoneNumber);
-      
-      // Use backend mock OTP for development
-      const response = await axios.post(`${API_URL}/api/v1/auth/request-otp`, {
-        phone: phoneNumber,
-      });
 
-      if (response.data.success) {
-        console.log('OTP sent successfully (mock)');
-        return {
-          success: true,
-          verificationId: 'mock-verification-id',
-        };
-      }
-      
-      return { success: false, error: 'Failed to send OTP' };
+      const confirmationResult = await signInWithPhoneNumber(auth, phoneNumber, recaptchaVerifier);
+      const verificationId = confirmationResult.verificationId;
+
+      console.log('OTP sent successfully');
+      return {
+        success: true,
+        verificationId,
+      };
+
     } catch (err: any) {
       console.error('Send OTP error:', err);
-      const errorMessage = err.response?.data?.error || err.message || 'Failed to send OTP';
+      const errorMessage = err.message || 'Failed to send OTP';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -160,31 +146,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Verify OTP using backend
+  // Verify OTP using Firebase Phone Auth and sync with backend
   const verifyOTP = async (verificationId: string, otp: string): Promise<{ success: boolean; error?: string }> => {
     try {
       setLoading(true);
       setError(null);
 
-      const phone = await AsyncStorage.getItem('pendingPhone');
-      console.log('Verifying OTP for phone:', phone);
-      
-      const response = await axios.post(`${API_URL}/api/v1/auth/verify-otp`, {
-        phone,
-        otp,
-      });
+      console.log('Verifying OTP...');
 
-      if (response.data.token) {
-        await AsyncStorage.setItem('authToken', response.data.token);
-        await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
-        setUserProfile(response.data.user);
+      const credential = PhoneAuthProvider.credential(verificationId, otp);
+      const userCredential = await signInWithCredential(auth, credential);
+      const firebaseUser = userCredential.user;
+
+      if (firebaseUser) {
+        const idToken = await firebaseUser.getIdToken();
+        await syncWithBackend(idToken);
         return { success: true };
       }
 
       return { success: false, error: 'Verification failed' };
     } catch (err: any) {
       console.error('Verify OTP error:', err);
-      const errorMessage = err.response?.data?.error || err.message || 'Invalid OTP';
+      const errorMessage = err.code === 'auth/invalid-verification-code'
+        ? 'Invalid OTP code'
+        : err.message || 'Verification failed';
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {
@@ -212,7 +197,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       await sendSignInLinkToEmail(auth, email, actionCodeSettings);
       await AsyncStorage.setItem('emailForSignIn', email);
-      
+
       return { success: true };
     } catch (err: any) {
       console.error('Send email link error:', err);
@@ -232,7 +217,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (isSignInWithEmailLink(auth, link)) {
         const result = await signInWithEmailLink(auth, email, link);
-        
+
         if (result.user) {
           const idToken = await result.user.getIdToken();
           await syncWithBackend(idToken);
@@ -311,6 +296,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const deleteAccount = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem('authToken');
+      if (token) {
+        await axios.delete(`${API_URL}/api/v1/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+
+      await signOut();
+    } catch (err: any) {
+      console.error('Delete account error:', err);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     userProfile,
@@ -324,6 +328,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signOut,
     refreshUserProfile,
     updateUserProfile,
+    deleteAccount,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
