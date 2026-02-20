@@ -64,7 +64,28 @@ export const ondcService = {
                     payment: {
                         "@ondc/org/buyer_app_finder_fee_type": "percent",
                         "@ondc/org/buyer_app_finder_fee_amount": "3"
-                    }
+                    },
+                    tags: [
+                        {
+                            descriptor: {
+                                code: "bap_terms"
+                            },
+                            list: [
+                                {
+                                    descriptor: {
+                                        code: "finder_fee_type"
+                                    },
+                                    value: "percent"
+                                },
+                                {
+                                    descriptor: {
+                                        code: "finder_fee_amount"
+                                    },
+                                    value: "3"
+                                }
+                            ]
+                        }
+                    ]
                 }
             }
         };
