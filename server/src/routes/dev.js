@@ -30,7 +30,7 @@ router.get('/export-logs', async (req, res) => {
             // Pre-flight Checks
             const context = payload.context || {};
             const validations = {
-                hasCoreVersion: context.core_version === '1.2.0' || context.core_version === '1.0.0', // IGM is 1.0.0
+                hasCoreVersion: context.core_version === '2.0.1' || context.core_version === '1.0.0', // IGM is 1.0.0
                 hasBapId: context.bap_id === 'api.hailone.in',
                 hasCity: context.city === 'std:022'
             };
