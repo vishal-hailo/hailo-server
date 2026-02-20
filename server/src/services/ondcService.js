@@ -84,6 +84,19 @@ export const ondcService = {
                                     value: "3"
                                 }
                             ]
+                        },
+                        {
+                            descriptor: {
+                                code: "bap_id"
+                            },
+                            list: [
+                                {
+                                    descriptor: {
+                                        code: "bap_id"
+                                    },
+                                    value: ONDC_CONFIG.SUBSCRIBER_ID
+                                }
+                            ]
                         }
                     ]
                 }
