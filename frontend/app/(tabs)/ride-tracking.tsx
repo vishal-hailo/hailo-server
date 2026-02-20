@@ -289,7 +289,6 @@ export default function RideTrackingScreen() {
                   }}
                   title="Your Ride"
                   description="Driver is on the way"
-                  image={require('../../assets/images/car-top-view.png')} // Assuming asset exists, or fallback to pin
                 >
                   <View style={{ backgroundColor: 'white', borderRadius: 15, padding: 5, elevation: 5 }}>
                     <Ionicons name="car" size={20} color="black" />

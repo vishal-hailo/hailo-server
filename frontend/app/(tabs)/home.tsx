@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../../constants/Config';
+import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 // RefreshControl is already imported from react-native above line 9
 
@@ -93,6 +94,7 @@ type RideType = 'car' | 'rickshaw' | 'bike';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { signOut } = useAuth(); // Get signOut from context
   const [user, setUser] = useState<any>(null);
   const [selectedRideType, setSelectedRideType] = useState<RideType>('car');
   const [refreshing, setRefreshing] = useState(false);
@@ -113,55 +115,84 @@ export default function HomeScreen() {
   }, []);
 
   const loadUserData = async () => {
+    setLoading(true);
+    const token = await AsyncStorage.getItem('authToken');
+
+    if (!token) {
+      console.log('No auth token found');
+      setLoading(false);
+      return;
+    }
+
+    // 1. Critical: Fetch User Profile
     try {
-      setLoading(true);
-      const token = await AsyncStorage.getItem('authToken');
-
-      if (!token) {
-        console.log('No auth token found');
-        setLoading(false);
-        return;
-      }
-
-      // Fetch user profile
-      const userResponse = await axios.get(`${API_URL}/api/v1/me`, {
+      const userResponse = await axios.get(`${API_URL}/api/v1/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setUser(userResponse.data);
+    } catch (error: any) {
+      console.error('Critical: Failed to load user profile:', error.message);
+      // Only sign out if the USER endpoint fails with 401 (Unauthorized) or 404 (User Not Found)
+      if (error.response?.status === 401 || error.response?.status === 404) {
+        console.log('Session invalid, signing out...');
+        await signOut();
+        return; // Stop execution
+      }
+      // If server error (500), just stop loading but don't sign out yet
+      setLoading(false);
+      return;
+    }
 
+    // 2. Auxiliary: Fetch Data (Locations, Recommendations, Insights)
+    // These failures should NOT log the user out.
+    try {
       // Fetch user locations
-      const locationsResponse = await axios.get(`${API_URL}/api/v1/locations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setLocations(locationsResponse.data);
+      try {
+        const locationsResponse = await axios.get(`${API_URL}/api/v1/locations`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setLocations(locationsResponse.data);
+      } catch (e) {
+        console.log('Failed to load locations (non-critical)');
+        setLocations([]);
+      }
 
       // Fetch recommendations
-      const recommendationsResponse = await axios.get(`${API_URL}/api/v1/insights/recommendations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setRecommendations(recommendationsResponse.data);
+      try {
+        const recommendationsResponse = await axios.get(`${API_URL}/api/v1/recommendations`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setRecommendations(recommendationsResponse.data);
+      } catch (e) {
+        console.log('Failed to load recommendations (non-critical)');
+        setRecommendations([]);
+      }
 
       // Fetch insights for savings
-      const insightsResponse = await axios.get(`${API_URL}/api/v1/insights/summary`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      // Handle different response structures gracefully
-      const totalSavedValue = insightsResponse.data.stats?.totalSaved ?? insightsResponse.data.totalSaved ?? 0;
-      setStats({ totalSaved: totalSavedValue });
+      try {
+        const insightsResponse = await axios.get(`${API_URL}/api/v1/insights/summary`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const totalSavedValue = insightsResponse.data.stats?.totalSaved ?? insightsResponse.data.totalSaved ?? 0;
+        setStats({ totalSaved: totalSavedValue });
+      } catch (e) {
+        console.log('Failed to load insights (non-critical)');
+      }
 
       // Fetch surge forecast
-      const surgeResponse = await axios.get(`${API_URL}/api/v1/surge/forecast`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (surgeResponse.data.forecast) {
-        setSurgeData(surgeResponse.data.forecast);
+      try {
+        const surgeResponse = await axios.get(`${API_URL}/api/v1/surge/forecast`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (surgeResponse.data.forecast) {
+          setSurgeData(surgeResponse.data.forecast);
+        }
+      } catch (e) {
+        console.log('Failed to load surge forecast (non-critical)');
       }
 
     } catch (error: any) {
-      console.error('Load user data error:', error.message);
-      // Fallback empty values
-      setLocations([]);
-      setRecommendations([]);
+      console.error('Auxiliary data load error:', error.message);
     } finally {
       setLoading(false);
     }

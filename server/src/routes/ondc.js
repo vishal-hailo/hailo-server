@@ -84,9 +84,13 @@ router.post('/status', async (req, res) => {
 });
 
 // GET Results for a transaction
-router.get('/results/:transactionId', (req, res) => {
-    const results = ondcService.getResults(req.params.transactionId);
-    res.json({ results });
+router.get('/results/:transactionId', async (req, res) => {
+    try {
+        const results = await ondcService.getResults(req.params.transactionId);
+        res.json({ results });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 

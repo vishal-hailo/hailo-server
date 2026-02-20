@@ -115,6 +115,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err: any) {
       const errorDetail = err.response?.data?.error || err.response?.data?.message || err.message;
       console.error('Backend sync error:', errorDetail);
+
+      // If sync fails with 401/404/500, sign out to prevent zombie state
+      if (err.response?.status === 401 || err.response?.status === 404 || err.response?.status === 500) {
+        console.log('Sync failed critically, signing out...');
+        await signOut();
+      }
+
       throw new Error(`Backend sync error: ${errorDetail}`);
     }
   };
@@ -258,7 +265,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const token = await AsyncStorage.getItem('authToken');
       if (!token) return;
 
-      const response = await axios.get(`${API_URL}/api/v1/me`, {
+      const response = await axios.get(`${API_URL}/api/v1/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -266,8 +273,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUserProfile(response.data);
         await AsyncStorage.setItem('user', JSON.stringify(response.data));
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Refresh profile error:', err);
+      // Handle session expiry
+      if (err.response?.status === 401 || err.response?.status === 404) {
+        await signOut();
+      }
     }
   };
 
@@ -279,7 +290,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!token) throw new Error('Not authenticated');
 
       const response = await axios.post(
-        `${API_URL}/api/v1/me/update`,
+        `${API_URL}/api/v1/auth/me/update`,
         data,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -290,6 +301,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     } catch (err: any) {
       console.error('Update profile error:', err);
+      // Handle session expiry
+      if (err.response?.status === 401 || err.response?.status === 404) {
+        await signOut();
+        throw new Error('Session expired. Please login again.');
+      }
       throw err;
     } finally {
       setLoading(false);
@@ -301,7 +317,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true);
       const token = await AsyncStorage.getItem('authToken');
       if (token) {
-        await axios.delete(`${API_URL}/api/v1/me`, {
+        await axios.delete(`${API_URL}/api/v1/auth/me`, {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
@@ -309,6 +325,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await signOut();
     } catch (err: any) {
       console.error('Delete account error:', err);
+      // Even if delete fails, we should sign out locally if it's an auth error
+      if (err.response?.status === 401 || err.response?.status === 404) {
+        await signOut();
+      }
       throw err;
     } finally {
       setLoading(false);
