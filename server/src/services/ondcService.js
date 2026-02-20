@@ -60,6 +60,10 @@ export const ondcService = {
                                 }
                             }
                         })
+                    },
+                    payment: {
+                        "@ondc/org/buyer_app_finder_fee_type": "percent",
+                        "@ondc/org/buyer_app_finder_fee_amount": "3"
                     }
                 }
             }
