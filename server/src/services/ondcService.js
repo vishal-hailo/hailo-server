@@ -45,11 +45,21 @@ export const ondcService = {
             message: {
                 intent: {
                     fulfillment: {
+                        vehicle: {
+                            category: "ANY" // Broad category to catch all ride types in tests
+                        },
                         start: {
                             location: {
                                 gps: `${location.latitude},${location.longitude}`
                             }
-                        }
+                        },
+                        ...(location.destination && {
+                            end: {
+                                location: {
+                                    gps: `${location.destination.latitude},${location.destination.longitude}`
+                                }
+                            }
+                        })
                     }
                 }
             }
