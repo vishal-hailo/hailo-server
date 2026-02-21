@@ -23,7 +23,7 @@ async function testIntegration() {
         context: {
             domain: ONDC_CONFIG.DOMAIN,
             country: ONDC_CONFIG.COUNTRY_CODE,
-            city: ONDC_CONFIG.CITY_CODE,
+            city: '*', // Matching the registry city_code: ["*"]
             action: 'search',
             core_version: '2.0.1',
             bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
@@ -36,17 +36,27 @@ async function testIntegration() {
         message: {
             intent: {
                 fulfillment: {
-                    start: {
-                        location: {
-                            gps: "19.0760,72.8777"
-                        }
+                    vehicle: { category: "ANY" },
+                    start: { location: { gps: "19.0760,72.8777" } },
+                    end: { location: { gps: "19.0544,72.8406" } }
+                },
+                payment: {
+                    "@ondc/org/buyer_app_finder_fee_type": "percent",
+                    "@ondc/org/buyer_app_finder_fee_amount": "3"
+                },
+                tags: [
+                    {
+                        descriptor: { code: "bap_terms" },
+                        list: [
+                            { descriptor: { code: "finder_fee_type" }, value: "percent" },
+                            { descriptor: { code: "finder_fee_amount" }, value: "3" }
+                        ]
                     },
-                    end: {
-                        location: {
-                            gps: "19.0544,72.8406"
-                        }
+                    {
+                        descriptor: { code: "bap_id" },
+                        list: [{ descriptor: { code: "bap_id" }, value: ONDC_CONFIG.SUBSCRIBER_ID }]
                     }
-                }
+                ]
             }
         }
     };
