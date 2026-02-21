@@ -48,6 +48,7 @@ connectDB();
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public')); // Serve ONDC site verification file
 
 // Health check
 app.get('/api/v1/health', (req, res) => {
