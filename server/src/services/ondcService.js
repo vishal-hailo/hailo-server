@@ -47,20 +47,17 @@ export const ondcService = {
             message: {
                 intent: {
                     fulfillment: {
-                        vehicle: {
-                            category: "ANY" // Broad category to catch all ride types in tests
-                        },
                         stops: [
                             {
                                 type: "START",
                                 location: {
-                                    gps: `${location.latitude},${location.longitude}`
+                                    gps: `${location.latitude}, ${location.longitude}`
                                 }
                             },
                             ...(location.destination ? [{
                                 type: "END",
                                 location: {
-                                    gps: `${location.destination.latitude},${location.destination.longitude}`
+                                    gps: `${location.destination.latitude}, ${location.destination.longitude}`
                                 }
                             }] : [])
                         ]
