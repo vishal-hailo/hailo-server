@@ -66,43 +66,44 @@ export const ondcService = {
                         ]
                     },
                     payment: {
-                        "@ondc/org/buyer_app_finder_fee_type": "percent",
-                        "@ondc/org/buyer_app_finder_fee_amount": "3"
-                    },
-                    tags: [
-                        {
-                            descriptor: {
-                                code: "bap_terms"
-                            },
-                            list: [
-                                {
-                                    descriptor: {
-                                        code: "finder_fee_type"
-                                    },
-                                    value: "percent"
+                        collected_by: "BPP",
+                        tags: [
+                            {
+                                descriptor: {
+                                    code: "BUYER_FINDER_FEES"
                                 },
-                                {
-                                    descriptor: {
-                                        code: "finder_fee_amount"
-                                    },
-                                    value: "3"
-                                }
-                            ]
-                        },
-                        {
-                            descriptor: {
-                                code: "bap_id"
+                                display: false,
+                                list: [
+                                    {
+                                        descriptor: {
+                                            code: "BUYER_FINDER_FEES_PERCENTAGE"
+                                        },
+                                        value: "1"
+                                    }
+                                ]
                             },
-                            list: [
-                                {
-                                    descriptor: {
-                                        code: "bap_id"
+                            {
+                                descriptor: {
+                                    code: "SETTLEMENT_TERMS"
+                                },
+                                display: false,
+                                list: [
+                                    {
+                                        descriptor: {
+                                            code: "DELAY_INTEREST"
+                                        },
+                                        value: "5"
                                     },
-                                    value: ONDC_CONFIG.SUBSCRIBER_ID
-                                }
-                            ]
-                        }
-                    ]
+                                    {
+                                        descriptor: {
+                                            code: "STATIC_TERMS"
+                                        },
+                                        value: "https://api.hailone.in/terms.txt"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
                 }
             }
         };
