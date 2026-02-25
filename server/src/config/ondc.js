@@ -14,8 +14,8 @@ export const ONDC_CONFIG = {
     PUBLIC_KEY: process.env.ONDC_PUBLIC_KEY,
 
     // Registry & Gateway
-    REGISTRY_URL: process.env.ONDC_REGISTRY_URL || 'https://staging.registry.ondc.org/lookup',
-    GATEWAY_URL: process.env.ONDC_GATEWAY_URL || 'https://staging.gateway.ondc.org/search',
+    REGISTRY_URL: process.env.ONDC_REGISTRY_URL || 'https://preprod.registry.ondc.org/lookup',
+    GATEWAY_URL: process.env.ONDC_GATEWAY_URL || 'https://preprod.gateway.ondc.org/search',
 
     // Protocol specific
     TTL: 'PT30S', // 30 seconds validity
