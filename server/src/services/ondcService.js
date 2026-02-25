@@ -134,7 +134,7 @@ export const ondcService = {
             console.warn('Received on_search for unknown transaction:', transaction_id);
             return;
         }
-        const providers = message?.catalog?.['bpp/providers'];
+        const providers = message?.catalog?.providers || message?.catalog?.['bpp/providers'];
 
         if (providers && providers.length > 0) {
             // Normalize results
@@ -148,7 +148,7 @@ export const ondcService = {
                     price: parseInt(item.price?.value),
                     currency: item.price?.currency,
                     name: item.descriptor?.name,
-                    fulfillmentId: item.fulfillment_id,
+                    fulfillmentId: item.fulfillment_ids?.[0] || item.fulfillment_id,
                     eta: Math.floor(Math.random() * 15) + 5 // Mock ETA if missing
                 }))
             );
