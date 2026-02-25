@@ -31,10 +31,12 @@ export const ondcService = {
         const payload = {
             context: {
                 domain: ONDC_CONFIG.DOMAIN,
-                country: ONDC_CONFIG.COUNTRY_CODE,
-                city: ONDC_CONFIG.CITY_CODE,
+                location: {
+                    city: { code: ONDC_CONFIG.CITY_CODE },
+                    country: { code: ONDC_CONFIG.COUNTRY_CODE }
+                },
                 action: 'search',
-                core_version: '2.0.1',
+                version: '2.0.1',
                 bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
                 bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
                 transaction_id: transactionId,
