@@ -31,12 +31,10 @@ export const ondcService = {
         const payload = {
             context: {
                 domain: ONDC_CONFIG.DOMAIN,
-                location: {
-                    city: { code: ONDC_CONFIG.CITY_CODE },
-                    country: { code: ONDC_CONFIG.COUNTRY_CODE }
-                },
+                country: ONDC_CONFIG.COUNTRY_CODE,
+                city: '*', // Matching the registry city_code: ["*"]
                 action: 'search',
-                version: '2.0.1',
+                core_version: '2.0.1',
                 bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
                 bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
                 transaction_id: transactionId,
@@ -47,60 +45,27 @@ export const ondcService = {
             message: {
                 intent: {
                     fulfillment: {
-                        stops: [
-                            {
-                                type: "START",
-                                location: {
-                                    gps: `${location.latitude}, ${location.longitude}`
-                                }
-                            },
-                            ...(location.destination ? [{
-                                type: "END",
-                                location: {
-                                    gps: `${location.destination.latitude}, ${location.destination.longitude}`
-                                }
-                            }] : [])
-                        ]
+                        vehicle: { category: "ANY" },
+                        start: { location: { gps: `${location.latitude},${location.longitude}` } },
+                        ...(location.destination && { end: { location: { gps: `${location.destination.latitude},${location.destination.longitude}` } } })
                     },
                     payment: {
-                        collected_by: "BPP",
-                        tags: [
-                            {
-                                descriptor: {
-                                    code: "BUYER_FINDER_FEES"
-                                },
-                                display: false,
-                                list: [
-                                    {
-                                        descriptor: {
-                                            code: "BUYER_FINDER_FEES_PERCENTAGE"
-                                        },
-                                        value: "1"
-                                    }
-                                ]
-                            },
-                            {
-                                descriptor: {
-                                    code: "SETTLEMENT_TERMS"
-                                },
-                                display: false,
-                                list: [
-                                    {
-                                        descriptor: {
-                                            code: "DELAY_INTEREST"
-                                        },
-                                        value: "5"
-                                    },
-                                    {
-                                        descriptor: {
-                                            code: "STATIC_TERMS"
-                                        },
-                                        value: "https://api.hailone.in/terms.txt"
-                                    }
-                                ]
-                            }
-                        ]
-                    }
+                        "@ondc/org/buyer_app_finder_fee_type": "percent",
+                        "@ondc/org/buyer_app_finder_fee_amount": "3"
+                    },
+                    tags: [
+                        {
+                            descriptor: { code: "bap_terms" },
+                            list: [
+                                { descriptor: { code: "finder_fee_type" }, value: "percent" },
+                                { descriptor: { code: "finder_fee_amount" }, value: "3" }
+                            ]
+                        },
+                        {
+                            descriptor: { code: "bap_id" },
+                            list: [{ descriptor: { code: "bap_id" }, value: ONDC_CONFIG.SUBSCRIBER_ID }]
+                        }
+                    ]
                 }
             }
         };
