@@ -22,41 +22,53 @@ async function testIntegration() {
     const payload = {
         context: {
             domain: ONDC_CONFIG.DOMAIN,
-            country: ONDC_CONFIG.COUNTRY_CODE,
-            city: '*', // Matching the registry city_code: ["*"]
             action: 'search',
-            core_version: '2.0.1',
             bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
             bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
-            transaction_id: transactionId,
+            location: {
+                city: { code: 'std:080' },
+                country: { code: 'IND' }
+            },
             message_id: uuidv4(),
             timestamp: new Date().toISOString(),
+            transaction_id: transactionId,
             ttl: 'PT30S',
+            version: '2.0.1'
         },
         message: {
             intent: {
                 fulfillment: {
-                    vehicle: { category: "ANY" },
-                    start: { location: { gps: "19.0760,72.8777" } },
-                    end: { location: { gps: "19.0544,72.8406" } }
+                    stops: [
+                        {
+                            location: { gps: "12.971599, 77.594563" },
+                            type: "START"
+                        },
+                        {
+                            location: { gps: "12.924158, 77.622521" },
+                            type: "END"
+                        }
+                    ]
                 },
                 payment: {
-                    "@ondc/org/buyer_app_finder_fee_type": "percent",
-                    "@ondc/org/buyer_app_finder_fee_amount": "3"
-                },
-                tags: [
-                    {
-                        descriptor: { code: "bap_terms" },
-                        list: [
-                            { descriptor: { code: "finder_fee_type" }, value: "percent" },
-                            { descriptor: { code: "finder_fee_amount" }, value: "3" }
-                        ]
-                    },
-                    {
-                        descriptor: { code: "bap_id" },
-                        list: [{ descriptor: { code: "bap_id" }, value: ONDC_CONFIG.SUBSCRIBER_ID }]
-                    }
-                ]
+                    collected_by: "BPP",
+                    tags: [
+                        {
+                            descriptor: { code: "BUYER_FINDER_FEES" },
+                            display: false,
+                            list: [
+                                { descriptor: { code: "BUYER_FINDER_FEES_PERCENTAGE" }, value: "1" }
+                            ]
+                        },
+                        {
+                            descriptor: { code: "SETTLEMENT_TERMS" },
+                            display: false,
+                            list: [
+                                { descriptor: { code: "DELAY_INTEREST" }, value: "5" },
+                                { descriptor: { code: "STATIC_TERMS" }, value: "https://api.hailone.in/terms.txt" }
+                            ]
+                        }
+                    ]
+                }
             }
         }
     };
