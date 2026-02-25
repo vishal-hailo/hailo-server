@@ -48,18 +48,20 @@ export const ondcService = {
                         vehicle: {
                             category: "ANY" // Broad category to catch all ride types in tests
                         },
-                        start: {
-                            location: {
-                                gps: `${location.latitude},${location.longitude}`
-                            }
-                        },
-                        ...(location.destination && {
-                            end: {
+                        stops: [
+                            {
+                                type: "START",
+                                location: {
+                                    gps: `${location.latitude},${location.longitude}`
+                                }
+                            },
+                            ...(location.destination ? [{
+                                type: "END",
                                 location: {
                                     gps: `${location.destination.latitude},${location.destination.longitude}`
                                 }
-                            }
-                        })
+                            }] : [])
+                        ]
                     },
                     payment: {
                         "@ondc/org/buyer_app_finder_fee_type": "percent",
@@ -304,6 +306,8 @@ export const ondcService = {
         const item = transaction.results.find(res => res.id === itemId && res.providerId === providerId);
         if (!item) throw new Error('Item not found in search results');
 
+        const targetBppUri = item.bppUri || 'https://pramaan.ondc.org/beta/preprod/mock';
+
         const messageId = uuidv4();
         const payload = {
             context: {
@@ -312,7 +316,7 @@ export const ondcService = {
                 bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
                 bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
                 bpp_id: item.bppId,
-                bpp_uri: item.bppUri,
+                bpp_uri: targetBppUri,
                 location: {
                     city: { code: 'std:080' },
                     country: { code: 'IND' }
@@ -355,7 +359,7 @@ export const ondcService = {
                 console.log('🚧 ONDC_MOCK: Skipping Select Call to BPP');
                 setTimeout(() => this.simulateOnSelect(transactionId, item), 1000);
             } else {
-                await axios.post(`${item.bppUri}/select`, payload, {
+                await axios.post(`${targetBppUri}/select`, payload, {
                     headers: {
                         'Authorization': authHeader,
                         'Content-Type': 'application/json'
@@ -374,7 +378,13 @@ export const ondcService = {
             return { messageId };
 
         } catch (error) {
-            console.error('ONDC Select Failed:', error.response?.data || error.message);
+            console.error('\n❌ ONDC Select Failed:');
+            if (error.response) {
+                console.error('Status:', error.response.status);
+                console.error('Data:', JSON.stringify(error.response.data, null, 2));
+            } else {
+                console.error('Message:', error.message);
+            }
             throw new Error('Failed to initiate ONDC select');
         }
     },
