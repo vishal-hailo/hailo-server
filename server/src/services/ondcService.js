@@ -308,18 +308,20 @@ export const ondcService = {
         const payload = {
             context: {
                 domain: ONDC_CONFIG.DOMAIN,
-                country: ONDC_CONFIG.COUNTRY_CODE,
-                city: ONDC_CONFIG.CITY_CODE,
                 action: 'select',
-                core_version: '2.0.1',
                 bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
                 bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
                 bpp_id: item.bppId,
                 bpp_uri: item.bppUri,
-                transaction_id: transactionId,
+                location: {
+                    city: { code: 'std:080' },
+                    country: { code: 'IND' }
+                },
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
-                ttl: ONDC_CONFIG.TTL,
+                transaction_id: transactionId,
+                ttl: 'P120S', // Note: v2 select uses P120S in the official example
+                version: '2.0.1'
             },
             message: {
                 order: {
@@ -328,10 +330,12 @@ export const ondcService = {
                     },
                     items: [
                         {
-                            id: itemId,
-                            quantity: {
-                                count: 1
-                            }
+                            id: itemId
+                        }
+                    ],
+                    fulfillments: [
+                        {
+                            id: item.fulfillmentId || "F1" // Ensure item has fulfillmentId or fallback
                         }
                     ]
                 }
@@ -419,18 +423,20 @@ export const ondcService = {
         const payload = {
             context: {
                 domain: ONDC_CONFIG.DOMAIN,
-                country: ONDC_CONFIG.COUNTRY_CODE,
-                city: ONDC_CONFIG.CITY_CODE,
                 action: 'init',
-                core_version: '2.0.1',
                 bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
                 bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
                 bpp_id: selectedItem.bppId,
                 bpp_uri: selectedItem.bppUri,
-                transaction_id: transactionId,
+                location: {
+                    city: { code: 'std:080' },
+                    country: { code: 'IND' }
+                },
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
-                ttl: ONDC_CONFIG.TTL,
+                transaction_id: transactionId,
+                ttl: ONDC_CONFIG.TTL, // P15M in some v2 specs, but TTL is fine for now
+                version: '2.0.1'
             },
             message: {
                 order: {
@@ -540,18 +546,20 @@ export const ondcService = {
         const payload = {
             context: {
                 domain: ONDC_CONFIG.DOMAIN,
-                country: ONDC_CONFIG.COUNTRY_CODE,
-                city: ONDC_CONFIG.CITY_CODE,
                 action: 'confirm',
-                core_version: '2.0.1',
                 bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
                 bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
                 bpp_id: selectedItem.bppId,
                 bpp_uri: selectedItem.bppUri,
-                transaction_id: transactionId,
+                location: {
+                    city: { code: 'std:080' },
+                    country: { code: 'IND' }
+                },
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
+                transaction_id: transactionId,
                 ttl: ONDC_CONFIG.TTL,
+                version: '2.0.1'
             },
             message: {
                 order: {
@@ -648,18 +656,20 @@ export const ondcService = {
         const payload = {
             context: {
                 domain: ONDC_CONFIG.DOMAIN,
-                country: ONDC_CONFIG.COUNTRY_CODE,
-                city: ONDC_CONFIG.CITY_CODE,
                 action: 'status',
-                core_version: '2.0.1',
                 bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
                 bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
                 bpp_id: selectedItem.bppId,
                 bpp_uri: selectedItem.bppUri,
-                transaction_id: transactionId,
+                location: {
+                    city: { code: 'std:080' },
+                    country: { code: 'IND' }
+                },
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
+                transaction_id: transactionId,
                 ttl: ONDC_CONFIG.TTL,
+                version: '2.0.1'
             },
             message: {
                 order_id: confirmedOrder.id
@@ -758,18 +768,20 @@ export const ondcService = {
         const payload = {
             context: {
                 domain: ONDC_CONFIG.DOMAIN,
-                country: ONDC_CONFIG.COUNTRY_CODE,
-                city: ONDC_CONFIG.CITY_CODE,
                 action: 'cancel',
-                core_version: '2.0.1',
                 bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
                 bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
                 bpp_id: selectedItem.bppId,
                 bpp_uri: selectedItem.bppUri,
-                transaction_id: transactionId,
+                location: {
+                    city: { code: 'std:080' },
+                    country: { code: 'IND' }
+                },
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
+                transaction_id: transactionId,
                 ttl: ONDC_CONFIG.TTL,
+                version: '2.0.1'
             },
             message: {
                 order_id: confirmedOrder.id,
