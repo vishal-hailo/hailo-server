@@ -7,11 +7,11 @@ async function testIntegration() {
     const backendUrl = 'https://api.hailone.in/ondc/search';
 
     const payload = {
-        latitude: 12.971599,
-        longitude: 77.594563,
+        latitude: 19.0760,
+        longitude: 72.8777,
         destination: {
-            latitude: 12.924158,
-            longitude: 77.622521
+            latitude: 19.0544,
+            longitude: 72.8406
         }
     };
 

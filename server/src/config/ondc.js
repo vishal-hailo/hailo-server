@@ -19,7 +19,7 @@ export const ONDC_CONFIG = {
 
     // Protocol specific
     TTL: 'PT30S', // 30 seconds validity
-    CITY_CODE: 'std:080', // Bangalore
+    CITY_CODE: 'std:022', // Mumbai
     COUNTRY_CODE: 'IND',
     DOMAIN: 'ONDC:TRV10', // Ride Hailing
 };
