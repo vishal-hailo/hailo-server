@@ -13,9 +13,9 @@ export const ONDC_CONFIG = {
     PRIVATE_KEY: process.env.ONDC_PRIVATE_KEY,
     PUBLIC_KEY: process.env.ONDC_PUBLIC_KEY,
 
-    // Registry & Gateway
-    REGISTRY_URL: process.env.ONDC_REGISTRY_URL || 'https://preprod.registry.ondc.org/lookup',
-    GATEWAY_URL: process.env.ONDC_GATEWAY_URL || 'https://preprod.gateway.ondc.org/search',
+    // Registry & Gateway (Forced strictly to Preprod for Pramaan)
+    REGISTRY_URL: 'https://preprod.registry.ondc.org/lookup',
+    GATEWAY_URL: 'https://preprod.gateway.ondc.org/search',
 
     // Protocol specific
     TTL: 'PT30S', // 30 seconds validity
