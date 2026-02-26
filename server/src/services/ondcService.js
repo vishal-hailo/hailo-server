@@ -289,7 +289,7 @@ export const ondcService = {
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
-                ttl: 'P120S', // Note: v2 select uses P120S in the official example
+                ttl: 'PT120S',
                 version: '2.0.1'
             },
             message: {
@@ -300,11 +300,6 @@ export const ondcService = {
                     items: [
                         {
                             id: itemId
-                        }
-                    ],
-                    fulfillments: [
-                        {
-                            id: item.fulfillmentId || "F1" // Ensure item has fulfillmentId or fallback
                         }
                     ]
                 }
