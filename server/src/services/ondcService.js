@@ -48,32 +48,24 @@ export const ondcService = {
                 intent: {
                     fulfillment: {
                         stops: [
-                            {
-                                type: "START",
-                                location: { gps: `${location.latitude},${location.longitude}` }
-                            },
-                            ...(location.destination ? [{
-                                type: "END",
-                                location: { gps: `${location.destination.latitude},${location.destination.longitude}` }
-                            }] : [])
+                            { location: { gps: `${location.latitude},${location.longitude}` }, type: "START" },
+                            { location: { gps: `${location.destination?.latitude || location.latitude + 0.01},${location.destination?.longitude || location.longitude + 0.01}` }, type: "END" }
                         ]
                     },
                     payment: {
-                        collected_by: "BAP",
+                        collected_by: "BPP",
                         tags: [
                             {
                                 descriptor: { code: "BUYER_FINDER_FEES" },
                                 display: false,
-                                list: [
-                                    { descriptor: { code: "BUYER_FINDER_FEES_PERCENTAGE" }, value: "3" }
-                                ]
+                                list: [{ descriptor: { code: "BUYER_FINDER_FEES_PERCENTAGE" }, value: "1" }]
                             },
                             {
                                 descriptor: { code: "SETTLEMENT_TERMS" },
                                 display: false,
                                 list: [
-                                    { descriptor: { code: "SETTLEMENT_WINDOW" }, value: "PT1D" },
-                                    { descriptor: { code: "SETTLEMENT_BASIS" }, value: "DELIVERY" }
+                                    { descriptor: { code: "DELAY_INTEREST" }, value: "5" },
+                                    { descriptor: { code: "STATIC_TERMS" }, value: "https://api.hailone.in/terms.txt" }
                                 ]
                             }
                         ]
@@ -301,7 +293,7 @@ export const ondcService = {
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
-                ttl: 'P120S', // Note: Select requires P120S (2 minutes)
+                ttl: 'PT120S',
                 version: '2.0.1'
             },
             message: {
@@ -312,12 +304,6 @@ export const ondcService = {
                     items: [
                         {
                             id: itemId
-                        }
-                    ],
-                    // We need fulfillments array per TRV10 select spec
-                    fulfillments: [
-                        {
-                            id: item.fulfillmentId || "F1"
                         }
                     ]
                 }
