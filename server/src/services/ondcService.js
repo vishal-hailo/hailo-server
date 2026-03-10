@@ -31,41 +31,53 @@ export const ondcService = {
         const payload = {
             context: {
                 domain: ONDC_CONFIG.DOMAIN,
-                country: ONDC_CONFIG.COUNTRY_CODE,
-                city: '*', // Matching the registry city_code: ["*"]
                 action: 'search',
-                core_version: '2.0.1',
                 bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
                 bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
+                location: {
+                    city: { code: ONDC_CONFIG.CITY_CODE },
+                    country: { code: ONDC_CONFIG.COUNTRY_CODE }
+                },
                 transaction_id: transactionId,
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
                 ttl: ONDC_CONFIG.TTL,
+                version: '2.0.1'
             },
             message: {
                 intent: {
                     fulfillment: {
-                        vehicle: { category: "ANY" },
-                        start: { location: { gps: `${location.latitude},${location.longitude}` } },
-                        ...(location.destination && { end: { location: { gps: `${location.destination.latitude},${location.destination.longitude}` } } })
+                        stops: [
+                            {
+                                type: "START",
+                                location: { gps: `${location.latitude},${location.longitude}` }
+                            },
+                            ...(location.destination ? [{
+                                type: "END",
+                                location: { gps: `${location.destination.latitude},${location.destination.longitude}` }
+                            }] : [])
+                        ]
                     },
                     payment: {
-                        "@ondc/org/buyer_app_finder_fee_type": "percent",
-                        "@ondc/org/buyer_app_finder_fee_amount": "3"
-                    },
-                    tags: [
-                        {
-                            descriptor: { code: "bap_terms" },
-                            list: [
-                                { descriptor: { code: "finder_fee_type" }, value: "percent" },
-                                { descriptor: { code: "finder_fee_amount" }, value: "3" }
-                            ]
-                        },
-                        {
-                            descriptor: { code: "bap_id" },
-                            list: [{ descriptor: { code: "bap_id" }, value: ONDC_CONFIG.SUBSCRIBER_ID }]
-                        }
-                    ]
+                        collected_by: "BAP",
+                        tags: [
+                            {
+                                descriptor: { code: "BUYER_FINDER_FEES" },
+                                display: false,
+                                list: [
+                                    { descriptor: { code: "BUYER_FINDER_FEES_PERCENTAGE" }, value: "3" }
+                                ]
+                            },
+                            {
+                                descriptor: { code: "SETTLEMENT_TERMS" },
+                                display: false,
+                                list: [
+                                    { descriptor: { code: "SETTLEMENT_WINDOW" }, value: "PT1D" },
+                                    { descriptor: { code: "SETTLEMENT_BASIS" }, value: "DELIVERY" }
+                                ]
+                            }
+                        ]
+                    }
                 }
             }
         };
@@ -283,13 +295,13 @@ export const ondcService = {
                 bpp_id: item.bppId,
                 bpp_uri: targetBppUri,
                 location: {
-                    city: { code: 'std:080' },
-                    country: { code: 'IND' }
+                    city: { code: ONDC_CONFIG.CITY_CODE },
+                    country: { code: ONDC_CONFIG.COUNTRY_CODE }
                 },
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
-                ttl: 'PT120S',
+                ttl: 'P120S', // Note: Select requires P120S (2 minutes)
                 version: '2.0.1'
             },
             message: {
@@ -300,6 +312,12 @@ export const ondcService = {
                     items: [
                         {
                             id: itemId
+                        }
+                    ],
+                    // We need fulfillments array per TRV10 select spec
+                    fulfillments: [
+                        {
+                            id: item.fulfillmentId || "F1"
                         }
                     ]
                 }

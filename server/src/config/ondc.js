@@ -3,8 +3,8 @@ dotenv.config();
 
 export const ONDC_CONFIG = {
     // Identity
-    SUBSCRIBER_ID: process.env.ONDC_SUBSCRIBER_ID || 'api.hailo.app',
-    SUBSCRIBER_URL: process.env.ONDC_SUBSCRIBER_URL || 'https://api.hailo.app/ondc',
+    SUBSCRIBER_ID: process.env.ONDC_SUBSCRIBER_ID || 'api.hailone.in',
+    SUBSCRIBER_URL: process.env.ONDC_SUBSCRIBER_URL || 'https://api.hailone.in/ondc',
     KEY_ID: process.env.ONDC_KEY_ID || 'hailo-key-1',
 
     // Keys (Base64 encoded)
