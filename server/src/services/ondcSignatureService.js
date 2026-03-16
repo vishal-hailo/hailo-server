@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { ONDC_CONFIG } from '../config/ondc.js';
+import { ONDC_CONFIG } from '../config/config.js';
 
 export const ondcSignatureService = {
     /**

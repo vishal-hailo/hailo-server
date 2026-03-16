@@ -1,0 +1,17 @@
+{
+  "context": {
+    "domain": "ONDC:TRV10",
+    "country": "IND",
+    "city": "std:080",
+    "action": "status",
+    "core_version": "1.2.0",
+    "bap_id": "api.hailone.in",
+    "bap_uri": "https://api.hailone.in/ondc",
+    "transaction_id": "txn-12345",
+    "message_id": "msg-status-001",
+    "timestamp": "2026-03-16T10:00:20Z"
+  },
+  "message": {
+    "order_id": "order-12345"
+  }
+}

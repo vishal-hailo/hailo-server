@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import { becknAuthService } from '../src/services/becknAuth.js';
-import { ONDC_CONFIG } from '../src/config/ondc.js';
+import { ONDC_CONFIG } from '../src/config/config.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -40,29 +40,42 @@ async function runSelectTest() {
         console.log('\n🚀 Initiating Select Request NATIVELY to BPP...');
 
         const messageId = uuidv4();
+
         const payload = {
             context: {
                 domain: ONDC_CONFIG.DOMAIN,
-                action: 'select',
+                action: "select",
+                version: "2.0.1",
                 bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
                 bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
                 bpp_id: selectedQuote.bppId,
                 bpp_uri: selectedQuote.bppUri,
-                location: { city: { code: 'std:080' }, country: { code: 'IND' } },
+               location: {
+                city: { code: "std:080" },
+                country: { code: "IND" }
+            },
                 message_id: messageId,
-                timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
-                ttl: 'PT120S',
-                version: '2.0.1'
+                timestamp: new Date().toISOString(),
+                ttl: "PT120S"
             },
             message: {
                 order: {
-                    provider: { id: selectedQuote.providerId },
-                    items: [{ id: selectedQuote.id }]
+                provider: {
+                    id: selectedQuote.providerId
+                },
+                items: [
+                    {
+                    id: selectedQuote.id
+                    }
+                ],
                 }
-            }
-        };
+                 }
+            };
 
+    
+        console.log("Payload before signing:");
+        console.log(JSON.stringify(payload, null, 2));
         const authHeader = await becknAuthService.createAuthorizationHeader(payload);
         const targetUrl = `${selectedQuote.bppUri}/select`;
         console.log(`📡 Sending to: ${targetUrl}`);

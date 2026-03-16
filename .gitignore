@@ -171,3 +171,6 @@ server/ondc_logs/
 # SQLite DB
 *.db
 *.db-journal
+
+keys/
+.env

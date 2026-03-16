@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ONDC_CONFIG } from '../config/ondc.js';
+import { ONDC_CONFIG } from '../config/config.js';
 import { ondcSignatureService } from './ondcSignatureService.js';
 
 export const ondcRegistryService = {

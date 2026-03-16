@@ -1,6 +1,6 @@
 import _sodium from 'libsodium-wrappers';
 import blake from 'blakejs';
-import { ONDC_CONFIG } from '../config/ondc.js';
+import { ONDC_CONFIG } from '../config/config.js';
 import { ondcRegistryService } from './ondcRegistryService.js';
 
 /**

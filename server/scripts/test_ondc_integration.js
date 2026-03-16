@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
 import { becknAuthService } from '../src/services/becknAuth.js';
-import { ONDC_CONFIG } from '../src/config/ondc.js';
+import { ONDC_CONFIG } from '../src/config/config.js';
 import Transaction from '../src/models/Transaction.js';
 
 dotenv.config();
