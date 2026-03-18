@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import Grievance from '../models/Grievance.js';
-import { ONDC_CONFIG } from '../config/ondc.js';
+import { ONDC_CONFIG } from '../config/ondcConfig.js';
 import { becknAuthService } from './becknAuth.js';
 import { ondcRegistryService } from './ondcRegistryService.js';
 
