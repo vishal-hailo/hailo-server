@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = "https://api.hailone.in/ondc";
 
 async function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
