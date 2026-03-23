@@ -98,24 +98,29 @@ export const ondcService = {
                 destination: 'GATEWAY', payload, headers: { Authorization: authHeader }
             });
 
-            if (process.env.ONDC_MOCK === 'true') {
-                console.log('🚧 ONDC_MOCK: Skipping Gateway Call');
-            } else {
-                await axios.post(gatewayUrl, payload, {
-                    headers: {
-                        'Authorization': authHeader,
-                        'Content-Type': 'application/json'
-                    }
-                });
-            }
-
-            // Create Transaction in DB
+            // Create Transaction in DB BEFORE calling Gateway to prevent race conditions with fast BPP callbacks
             await Transaction.create({
                 transactionId,
                 status: 'SEARCH_INITIATED',
                 location,
                 uberEstimate
             });
+
+            if (process.env.ONDC_MOCK === 'true') {
+                console.log('🚧 ONDC_MOCK: Skipping Gateway Call');
+            } else {
+                const response = await axios.post(gatewayUrl, payload, {
+                    headers: {
+                        'Authorization': authHeader,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.data?.message?.ack?.status === 'NACK') {
+                    console.error('⛔ Gateway NACK:', JSON.stringify(response.data.error));
+                    throw new Error(`Gateway Rejected Search: ${response.data.error?.message || 'NACK'}`);
+                }
+            }
 
             return { transactionId };
 
@@ -319,18 +324,7 @@ export const ondcService = {
                 destination: item.bppId, payload, headers: { Authorization: authHeader }
             });
 
-            if (process.env.ONDC_MOCK === 'true') {
-                console.log('🚧 ONDC_MOCK: Skipping Select Call to BPP');
-                setTimeout(() => this.simulateOnSelect(transactionId, item), 1000);
-            } else {
-                await axios.post(`${targetBppUri}/select`, payload, {
-                    headers: {
-                        'Authorization': authHeader,
-                        'Content-Type': 'application/json'
-                    }
-                });
-            }
-
+            // Update Transaction in DB BEFORE calling BPP
             await Transaction.updateOne(
                 { transactionId },
                 {
@@ -338,6 +332,23 @@ export const ondcService = {
                     selectedItem: item
                 }
             );
+
+            if (process.env.ONDC_MOCK === 'true') {
+                console.log('🚧 ONDC_MOCK: Skipping Select Call to BPP');
+                setTimeout(() => this.simulateOnSelect(transactionId, item), 1000);
+            } else {
+                const response = await axios.post(`${targetBppUri}/select`, payload, {
+                    headers: {
+                        'Authorization': authHeader,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.data?.message?.ack?.status === 'NACK') {
+                    console.error('⛔ BPP NACK:', JSON.stringify(response.data.error));
+                    throw new Error(`BPP Rejected Select: ${response.data.error?.message || 'NACK'}`);
+                }
+            }
 
             return { messageId };
 
