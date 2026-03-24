@@ -98,24 +98,29 @@ export const ondcService = {
                 destination: 'GATEWAY', payload, headers: { Authorization: authHeader }
             });
 
-            if (process.env.ONDC_MOCK === 'true') {
-                console.log('🚧 ONDC_MOCK: Skipping Gateway Call');
-            } else {
-                await axios.post(gatewayUrl, payload, {
-                    headers: {
-                        'Authorization': authHeader,
-                        'Content-Type': 'application/json'
-                    }
-                });
-            }
-
-            // Create Transaction in DB
+            // Create Transaction in DB BEFORE calling Gateway to prevent race conditions with fast BPP callbacks
             await Transaction.create({
                 transactionId,
                 status: 'SEARCH_INITIATED',
                 location,
                 uberEstimate
             });
+
+            if (process.env.ONDC_MOCK === 'true') {
+                console.log('🚧 ONDC_MOCK: Skipping Gateway Call');
+            } else {
+                const response = await axios.post(gatewayUrl, payload, {
+                    headers: {
+                        'Authorization': authHeader,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.data?.message?.ack?.status === 'NACK') {
+                    console.error('⛔ Gateway NACK:', JSON.stringify(response.data.error));
+                    throw new Error(`Gateway Rejected Search: ${response.data.error?.message || 'NACK'}`);
+                }
+            }
 
             return { transactionId };
 
@@ -319,18 +324,7 @@ export const ondcService = {
                 destination: item.bppId, payload, headers: { Authorization: authHeader }
             });
 
-            if (process.env.ONDC_MOCK === 'true') {
-                console.log('🚧 ONDC_MOCK: Skipping Select Call to BPP');
-                setTimeout(() => this.simulateOnSelect(transactionId, item), 1000);
-            } else {
-                await axios.post(`${targetBppUri}/select`, payload, {
-                    headers: {
-                        'Authorization': authHeader,
-                        'Content-Type': 'application/json'
-                    }
-                });
-            }
-
+            // Update Transaction in DB BEFORE calling BPP
             await Transaction.updateOne(
                 { transactionId },
                 {
@@ -338,6 +332,23 @@ export const ondcService = {
                     selectedItem: item
                 }
             );
+
+            if (process.env.ONDC_MOCK === 'true') {
+                console.log('🚧 ONDC_MOCK: Skipping Select Call to BPP');
+                setTimeout(() => this.simulateOnSelect(transactionId, item), 1000);
+            } else {
+                const response = await axios.post(`${targetBppUri}/select`, payload, {
+                    headers: {
+                        'Authorization': authHeader,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (response.data?.message?.ack?.status === 'NACK') {
+                    console.error('⛔ BPP NACK:', JSON.stringify(response.data.error));
+                    throw new Error(`BPP Rejected Select: ${response.data.error?.message || 'NACK'}`);
+                }
+            }
 
             return { messageId };
 
@@ -403,8 +414,8 @@ export const ondcService = {
                 bpp_id: selectedItem.bppId,
                 bpp_uri: selectedItem.bppUri,
                 location: {
-                    city: { code: 'std:080' },
-                    country: { code: 'IND' }
+                    city: { code: ONDC_CONFIG.CITY_CODE },
+                    country: { code: ONDC_CONFIG.COUNTRY_CODE }
                 },
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
@@ -526,8 +537,8 @@ export const ondcService = {
                 bpp_id: selectedItem.bppId,
                 bpp_uri: selectedItem.bppUri,
                 location: {
-                    city: { code: 'std:080' },
-                    country: { code: 'IND' }
+                    city: { code: ONDC_CONFIG.CITY_CODE },
+                    country: { code: ONDC_CONFIG.COUNTRY_CODE }
                 },
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
@@ -537,31 +548,36 @@ export const ondcService = {
             },
             message: {
                 order: {
-                    id: uuidv4(), // Client generated Order ID? Or from provider? Usually provider gives it in Init/Confirm.
+                    id: uuidv4(), // Client generated Order ID
                     provider: { id: selectedItem.providerId },
-                    items: [{ id: selectedItem.id, quantity: { count: 1 } }],
+                    items: [{ id: selectedItem.id }],
                     billing: initOrder.billing,
-                    fulfillment: initOrder.fulfillment,
-                    payment: {
-                        uri: "https://razorpay.com/payment_link_id",
-                        tl_method: "http/get",
-                        params: { amount: initOrder.quote?.price?.value, currency: "INR" },
-                        status: "PAID",
-                        type: "ON-ORDER",
-                        collected_by: "BAP",
-                        "@ondc/org/buyer_app_finder_fee_type": "percent",
-                        "@ondc/org/buyer_app_finder_fee_amount": "3", // 3% commission
-                        "@ondc/org/settlement_details": [
-                            {
-                                settlement_counterparty: "seller-app",
-                                settlement_phase: "sale-amount",
-                                settlement_type: "upi",
-                                settlement_bank_account_no: "XXXXXXXX1234",
-                                settlement_ifsc_code: "HDFC0001234",
-                                beneficiary_name: "Uber India"
-                            }
-                        ]
-                    }
+                    fulfillments: initOrder.fulfillments || initOrder.fulfillment,
+                    payments: [
+                        {
+                            collected_by: "BAP",
+                            params: { amount: initOrder.quote?.price?.value, currency: "INR" },
+                            status: "PAID",
+                            type: "PRE-FULFILLMENT",
+                            tags: [
+                                {
+                                    descriptor: { code: "BUYER_FINDER_FEES" },
+                                    display: false,
+                                    list: [
+                                        { descriptor: { code: "BUYER_FINDER_FEES_PERCENTAGE" }, value: "3" }
+                                    ]
+                                },
+                                {
+                                    descriptor: { code: "SETTLEMENT_TERMS" },
+                                    display: false,
+                                    list: [
+                                        { descriptor: { code: "SETTLEMENT_WINDOW" }, value: "PT1D" },
+                                        { descriptor: { code: "SETTLEMENT_BASIS" }, value: "DELIVERY" }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
                 }
             }
         };
@@ -636,8 +652,8 @@ export const ondcService = {
                 bpp_id: selectedItem.bppId,
                 bpp_uri: selectedItem.bppUri,
                 location: {
-                    city: { code: 'std:080' },
-                    country: { code: 'IND' }
+                    city: { code: ONDC_CONFIG.CITY_CODE },
+                    country: { code: ONDC_CONFIG.COUNTRY_CODE }
                 },
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
@@ -748,8 +764,8 @@ export const ondcService = {
                 bpp_id: selectedItem.bppId,
                 bpp_uri: selectedItem.bppUri,
                 location: {
-                    city: { code: 'std:080' },
-                    country: { code: 'IND' }
+                    city: { code: ONDC_CONFIG.CITY_CODE },
+                    country: { code: ONDC_CONFIG.COUNTRY_CODE }
                 },
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
