@@ -38,9 +38,9 @@ router.post('/select', async (req, res) => {
 // Trigger ONDC Init
 router.post('/init', async (req, res) => {
     try {
-        const { transactionId } = req.body;
+        const { transactionId, passengerName, passengerPhone } = req.body;
         if (!transactionId) return res.status(400).json({ error: 'Missing transactionId' });
-        const result = await ondcService.init(transactionId);
+        const result = await ondcService.init(transactionId, passengerName, passengerPhone);
         res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });

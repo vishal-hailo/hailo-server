@@ -398,9 +398,14 @@ export const ondcService = {
      * init
      * Initialize the order (Billing/Fulfillment).
      */
-    async init(transactionId) {
+    async init(transactionId, passengerName, passengerPhone) {
         const transaction = await Transaction.findOne({ transactionId });
         if (!transaction || !transaction.selectedItem) throw new Error('Transaction or Selected Item not found');
+
+        // Save passenger details to transaction (with defaults)
+        transaction.passengerName = passengerName || transaction.passengerName || 'HailO User';
+        transaction.passengerPhone = passengerPhone || transaction.passengerPhone || '9999999999';
+        await transaction.save();
 
         const { selectedItem } = transaction;
         const messageId = uuidv4();
@@ -425,43 +430,62 @@ export const ondcService = {
             },
             message: {
                 order: {
-                    provider: {
-                        id: selectedItem.providerId,
+                    provider: { id: selectedItem.providerId },
+                    items: [{ id: selectedItem.id }],
+                    // TRV10 spec: billing requires only `name`
+                    billing: {
+                        name: transaction.passengerName || "HailO User"
                     },
-                    items: [
+                    // TRV10 spec: fulfillments is an ARRAY with stops (not fulfillment.start/end)
+                    fulfillments: [
                         {
-                            id: selectedItem.id,
-                            quantity: { count: 1 }
+                            id: selectedItem.fulfillmentId || "F1",
+                            customer: {
+                                contact: { phone: transaction.passengerPhone || "9999999999" },
+                                person: { name: transaction.passengerName || "HailO User" }
+                            },
+                            stops: [
+                                {
+                                    type: "START",
+                                    location: { gps: `${transaction.location.latitude},${transaction.location.longitude}` }
+                                },
+                                ...(transaction.location.destination ? [{
+                                    type: "END",
+                                    location: { gps: `${transaction.location.destination.latitude},${transaction.location.destination.longitude}` }
+                                }] : [])
+                            ]
                         }
                     ],
-                    billing: {
-                        name: "Vishal Rao", // Hardcoded for demo/MVP
-                        phone: "9988776655",
-                        email: "vishal@example.com",
-                        address: {
-                            door: "123",
-                            name: "Home",
-                            building: "Apartments",
-                            street: "Main St",
-                            city: "Mumbai",
-                            state: "Maharashtra",
-                            country: "IND",
-                            area_code: "400001"
+                    // TRV10 spec: payments is an ARRAY; collected_by BPP (for seller-collected), status NOT-PAID at init
+                    payments: [
+                        {
+                            collected_by: "BPP",
+                            status: "NOT-PAID",
+                            type: "ON-FULFILLMENT",
+                            tags: [
+                                {
+                                    descriptor: { code: "BUYER_FINDER_FEES" },
+                                    display: false,
+                                    list: [
+                                        { descriptor: { code: "BUYER_FINDER_FEES_PERCENTAGE" }, value: "1" }
+                                    ]
+                                },
+                                {
+                                    descriptor: { code: "SETTLEMENT_TERMS" },
+                                    display: false,
+                                    list: [
+                                        { descriptor: { code: "SETTLEMENT_WINDOW" }, value: "PT60M" },
+                                        { descriptor: { code: "SETTLEMENT_BASIS" }, value: "DELIVERY" },
+                                        { descriptor: { code: "SETTLEMENT_TYPE" }, value: "UPI" },
+                                        { descriptor: { code: "MANDATORY_ARBITRATION" }, value: "true" },
+                                        { descriptor: { code: "COURT_JURISDICTION" }, value: "New Delhi" },
+                                        { descriptor: { code: "DELAY_INTEREST" }, value: "5" },
+                                        { descriptor: { code: "STATIC_TERMS" }, value: "https://hailone.in/static-terms" }
+                                    ]
+                                }
+                            ]
                         }
-                    },
-                    fulfillment: {
-                        type: "RIDE",
-                        start: {
-                            location: {
-                                gps: `${transaction.location.latitude},${transaction.location.longitude}`
-                            }
-                        },
-                        end: {
-                            location: {
-                                gps: `${transaction.location.destination?.latitude},${transaction.location.destination?.longitude}`
-                            }
-                        }
-                    }
+                    ]
                 }
             }
         };
@@ -525,7 +549,6 @@ export const ondcService = {
         if (!transaction || !transaction.initOrder) throw new Error('Transaction or Init Order not found');
 
         const messageId = uuidv4();
-        // Assuming we proceed with details from Init
         const { initOrder, selectedItem } = transaction;
 
         const payload = {
@@ -548,31 +571,62 @@ export const ondcService = {
             },
             message: {
                 order: {
-                    id: uuidv4(), // Client generated Order ID
                     provider: { id: selectedItem.providerId },
                     items: [{ id: selectedItem.id }],
                     billing: initOrder.billing,
-                    fulfillments: initOrder.fulfillments || initOrder.fulfillment,
+                    // fulfillments passed through from on_init response
+                    fulfillments: initOrder.fulfillments || initOrder.fulfillment || [
+                        {
+                            id: selectedItem.fulfillmentId || "F1",
+                            customer: {
+                                contact: { phone: transaction.passengerPhone || "9999999999" },
+                                person: { name: transaction.passengerName || "HailO User" }
+                            },
+                            stops: [
+                                {
+                                    type: "START",
+                                    location: { gps: `${transaction.location.latitude},${transaction.location.longitude}` }
+                                },
+                                ...(transaction.location.destination ? [{
+                                    type: "END",
+                                    location: { gps: `${transaction.location.destination.latitude},${transaction.location.destination.longitude}` }
+                                }] : [])
+                            ]
+                        }
+                    ],
+                    // TRV10 spec: confirm uses status=PAID (payment collected) and full settlement tags
                     payments: [
                         {
-                            collected_by: "BAP",
-                            params: { amount: initOrder.quote?.price?.value, currency: "INR" },
+                            collected_by: "BPP",
+                            id: initOrder.payments?.[0]?.id || "PA1",
+                            params: {
+                                transaction_id: uuidv4(),
+                                bank_account_number: initOrder.payments?.[0]?.params?.bank_account_number || "",
+                                bank_code: initOrder.payments?.[0]?.params?.bank_code || "",
+                                virtual_payment_address: initOrder.payments?.[0]?.params?.virtual_payment_address || ""
+                            },
                             status: "PAID",
-                            type: "PRE-FULFILLMENT",
+                            type: "ON-FULFILLMENT",
                             tags: [
                                 {
                                     descriptor: { code: "BUYER_FINDER_FEES" },
                                     display: false,
                                     list: [
-                                        { descriptor: { code: "BUYER_FINDER_FEES_PERCENTAGE" }, value: "3" }
+                                        { descriptor: { code: "BUYER_FINDER_FEES_PERCENTAGE" }, value: "1" }
                                     ]
                                 },
                                 {
                                     descriptor: { code: "SETTLEMENT_TERMS" },
                                     display: false,
                                     list: [
-                                        { descriptor: { code: "SETTLEMENT_WINDOW" }, value: "PT1D" },
-                                        { descriptor: { code: "SETTLEMENT_BASIS" }, value: "DELIVERY" }
+                                        { descriptor: { code: "SETTLEMENT_WINDOW" }, value: "PT60M" },
+                                        { descriptor: { code: "SETTLEMENT_BASIS" }, value: "DELIVERY" },
+                                        { descriptor: { code: "SETTLEMENT_TYPE" }, value: "UPI" },
+                                        { descriptor: { code: "MANDATORY_ARBITRATION" }, value: "true" },
+                                        { descriptor: { code: "COURT_JURISDICTION" }, value: "New Delhi" },
+                                        { descriptor: { code: "DELAY_INTEREST" }, value: "5" },
+                                        { descriptor: { code: "STATIC_TERMS" }, value: "https://hailone.in/static-terms" },
+                                        { descriptor: { code: "SETTLEMENT_AMOUNT" }, value: String(initOrder.quote?.price?.value || "") }
                                     ]
                                 }
                             ]

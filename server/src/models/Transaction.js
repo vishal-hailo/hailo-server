@@ -26,7 +26,9 @@ const transactionSchema = new mongoose.Schema({
     initOrder: { type: Object }, // Order details from on_init
     confirmedOrder: { type: Object }, // Final order from on_confirm
     uberEstimate: { type: Object }, // Snapshot of Uber estimate
-
+    // Passenger Details (required for ONDC TRV10 init/confirm)
+    passengerName: { type: String, default: 'HailO User' },
+    passengerPhone: { type: String, default: '9999999999' },
     // Fulfillment & Tracking
     fulfillmentStatus: { type: String, default: 'PENDING' }, // PENDING, AGENT-ASSIGNED, OT_THE_WAY, ARRIVED, RIDE_STARTED, COMPLETED
     driverLocation: {
