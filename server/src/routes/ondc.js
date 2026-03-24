@@ -71,6 +71,18 @@ router.post('/cancel', async (req, res) => {
     }
 });
 
+// Trigger ONDC Track (live GPS tracking) - Step 10 in TRV10 Pramaan flow
+router.post('/track', async (req, res) => {
+    try {
+        const { transactionId } = req.body;
+        if (!transactionId) return res.status(400).json({ error: 'Missing transactionId' });
+        const result = await ondcService.track(transactionId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Trigger ONDC Status Check
 router.post('/status', async (req, res) => {
     try {
@@ -172,6 +184,20 @@ router.post('/on_cancel', auditIncomingMiddleware, verifyOndcSignature, async (r
         res.json({ message: { ack: { status: 'ACK' } } });
     } catch (error) {
         console.error('Error handling on_cancel:', error);
+        res.status(500).json({ message: { ack: { status: 'NACK' } } });
+    }
+});
+
+/**
+ * POST /ondc/on_track
+ * Callback for GPS Tracking - Step 11 in TRV10 Pramaan flow
+ */
+router.post('/on_track', auditIncomingMiddleware, verifyOndcSignature, async (req, res) => {
+    try {
+        await ondcService.onTrack(req.body);
+        res.json({ message: { ack: { status: 'ACK' } } });
+    } catch (error) {
+        console.error('Error handling on_track:', error);
         res.status(500).json({ message: { ack: { status: 'NACK' } } });
     }
 });

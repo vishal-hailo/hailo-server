@@ -755,43 +755,131 @@ export const ondcService = {
         const { context, message } = body;
         const { transaction_id } = context;
 
-        // Assuming message.order contains the updated order details
         if (message.order) {
-            // The original orphaned code used `updateData` and `driverLoc` which are not directly
-            // available in `message.order` or `context`.
-            // For a complete implementation, `updateData` and `driverLoc` would need to be
-            // extracted or derived from `message.order` or fetched from the database.
-            // For now, we'll use placeholder values or assume they are available from a broader scope
-            // if this was part of a larger class/module.
-            // For this fix, we'll assume `message.order` contains the necessary info for `updateData`
-            // and `driverLoc` would be part of `message.order.fulfillment.start.location` or similar.
-            // As the instruction is to fix the closing and remove orphaned code, we'll place the
-            // orphaned code here and make minimal assumptions.
+            const order = message.order;
+            // TRV10 spec: state is inside fulfillments[0].state.descriptor.code
+            const fulfillment = order.fulfillments?.[0];
+            const stateCode = fulfillment?.state?.descriptor?.code || 'UNKNOWN';
 
-            // Placeholder for updateData and driverLoc if not directly in message.order
+            // TRV10 spec: agent details inside fulfillments[0].agent
+            const agent = fulfillment?.agent;
+
+            // TRV10 spec: driver location is tracked via on_track (GPS), but on_status
+            // may include agent's current location in stops or via the tracking URL.
+            // Emit the full fulfillment state + agent info to the frontend.
             const updateData = {
-                fulfillmentStatus: message.order.fulfillment?.state?.descriptor?.code || 'UNKNOWN',
-                // other relevant data from message.order
+                fulfillmentStatus: stateCode,
+                agent: agent ? {
+                    name: agent.person?.name,
+                    phone: agent.contact?.phone
+                } : null,
+                vehicle: fulfillment?.vehicle || null,
+                order
             };
-            const driverLoc = message.order.fulfillment?.start?.location?.gps ?
-                { gps: message.order.fulfillment.start.location.gps } : null;
 
             await Transaction.updateOne(
                 { transactionId: transaction_id },
                 {
-                    status: updateData.fulfillmentStatus, // Update main status based on fulfillment
-                    fulfillmentStatus: updateData.fulfillmentStatus,
-                    confirmedOrder: message.order // Store the latest order details
+                    fulfillmentStatus: stateCode,
+                    confirmedOrder: order
                 }
             );
 
             if (io) {
-                io.emit(`status_update_${transaction_id}`, {
-                    state: updateData.fulfillmentStatus,
-                    location: driverLoc,
-                    order: message.order
+                io.emit(`status_update_${transaction_id}`, updateData);
+                console.log(`📡 Emitted Status update for ${transaction_id}: ${stateCode}`);
+            }
+        }
+    },
+
+    /**
+     * track
+     * Request live GPS tracking for a confirmed ride.
+     */
+    async track(transactionId) {
+        const transaction = await Transaction.findOne({ transactionId });
+        if (!transaction || !transaction.confirmedOrder) throw new Error('Transaction or Confirmed Order not found');
+
+        const { selectedItem, confirmedOrder } = transaction;
+        const messageId = uuidv4();
+
+        const payload = {
+            context: {
+                domain: ONDC_CONFIG.DOMAIN,
+                action: 'track',
+                bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
+                bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
+                bpp_id: selectedItem.bppId,
+                bpp_uri: selectedItem.bppUri,
+                location: {
+                    city: { code: ONDC_CONFIG.CITY_CODE },
+                    country: { code: ONDC_CONFIG.COUNTRY_CODE }
+                },
+                message_id: messageId,
+                timestamp: new Date().toISOString(),
+                transaction_id: transactionId,
+                ttl: ONDC_CONFIG.TTL,
+                version: '2.0.1'
+            },
+            message: {
+                // TRV10 spec: track only needs the order_id
+                order_id: confirmedOrder.id
+            }
+        };
+
+        const authHeader = await becknAuthService.createAuthorizationHeader(payload);
+
+        try {
+            auditService.log({
+                transactionId, messageId, action: 'track', direction: 'OUTBOUND',
+                destination: selectedItem.bppId, payload, headers: { Authorization: authHeader }
+            });
+
+            if (process.env.ONDC_MOCK === 'true') {
+                console.log('🚧 ONDC_MOCK: Skipping Track Call to BPP');
+            } else {
+                const response = await axios.post(`${selectedItem.bppUri}/track`, payload, {
+                    headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
                 });
-                console.log(`📡 Emitted Status update for ${transaction_id}: ${updateData.fulfillmentStatus}`);
+                if (response.data?.message?.ack?.status === 'NACK') {
+                    throw new Error(`BPP Rejected Track: ${response.data.error?.message || 'NACK'}`);
+                }
+            }
+
+            return { messageId };
+        } catch (error) {
+            console.error('ONDC Track Failed:', error.response?.data || error.message);
+            throw new Error('Failed to request ONDC tracking');
+        }
+    },
+
+    /**
+     * onTrack
+     * Callback from BPP with live GPS tracking info.
+     */
+    async onTrack(body) {
+        const { context, message } = body;
+        const { transaction_id } = context;
+
+        // TRV10 spec: message.tracking.location.gps = "lat, lng"
+        const tracking = message?.tracking;
+        if (tracking) {
+            const gps = tracking.location?.gps;
+            if (gps) {
+                const [lat, lng] = gps.split(',').map(s => parseFloat(s.trim()));
+                await Transaction.updateOne(
+                    { transactionId: transaction_id },
+                    { driverLocation: { latitude: lat, longitude: lng, updatedAt: new Date() } }
+                );
+            }
+
+            if (io) {
+                io.emit(`track_update_${transaction_id}`, {
+                    status: tracking.status, // 'active' or 'inactive'
+                    location: tracking.location,
+                    url: tracking.url // some BPPs may provide a tracking URL instead
+                });
+                console.log(`📡 Emitted Track update for ${transaction_id}`);
             }
         }
     },
