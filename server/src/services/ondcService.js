@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-import { ONDC_CONFIG } from '../config/ondcConfig.js';
+import { ONDC_CONFIG } from '../config/config.js';
 import { becknAuthService } from './becknAuth.js';
 import { ondcRegistryService } from './ondcRegistryService.js';
 import { getEstimate as getUberEstimate } from './uberService.js';
