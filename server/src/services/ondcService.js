@@ -576,9 +576,10 @@ export const ondcService = {
                     billing: initOrder.billing,
                     // Clean fulfillments: BPP's on_init response includes tags/state/agent,
                     // but the Gateway strictly rejects these in the BAP's confirm request.
+                    // Note: 'vehicle' IS allowed in confirm if it contains category/variant.
                     fulfillments: (initOrder.fulfillments || initOrder.fulfillment)
                         ? (initOrder.fulfillments || initOrder.fulfillment).map(f => {
-                            const { tags, state, vehicle, agent, ...allowedFields } = f;
+                            const { tags, state, agent, ...allowedFields } = f;
                             return allowedFields;
                         })
                         : [
@@ -607,11 +608,10 @@ export const ondcService = {
                             id: initOrder.payments?.[0]?.id || "PA1",
                             params: Object.fromEntries(
                                 Object.entries({
-                                    transaction_id: uuidv4(),
                                     ...(initOrder.payments?.[0]?.params || {})
                                 }).filter(([_, v]) => v !== "" && v !== null && v !== undefined)
                             ),
-                            status: "PAID",
+                            status: "NOT-PAID",
                             type: "ON-FULFILLMENT",
                             tags: [
                                 {
