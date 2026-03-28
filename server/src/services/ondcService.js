@@ -605,12 +605,12 @@ export const ondcService = {
                         {
                             collected_by: "BPP",
                             id: initOrder.payments?.[0]?.id || "PA1",
-                            params: {
-                                transaction_id: uuidv4(),
-                                bank_account_number: initOrder.payments?.[0]?.params?.bank_account_number || "",
-                                bank_code: initOrder.payments?.[0]?.params?.bank_code || "",
-                                virtual_payment_address: initOrder.payments?.[0]?.params?.virtual_payment_address || ""
-                            },
+                            params: Object.fromEntries(
+                                Object.entries({
+                                    transaction_id: uuidv4(),
+                                    ...(initOrder.payments?.[0]?.params || {})
+                                }).filter(([_, v]) => v !== "" && v !== null && v !== undefined)
+                            ),
                             status: "PAID",
                             type: "ON-FULFILLMENT",
                             tags: [
