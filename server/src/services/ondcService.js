@@ -574,26 +574,32 @@ export const ondcService = {
                     provider: { id: selectedItem.providerId },
                     items: [{ id: selectedItem.id }],
                     billing: initOrder.billing,
-                    // fulfillments passed through from on_init response
-                    fulfillments: initOrder.fulfillments || initOrder.fulfillment || [
-                        {
-                            id: selectedItem.fulfillmentId || "F1",
-                            customer: {
-                                contact: { phone: transaction.passengerPhone || "9999999999" },
-                                person: { name: transaction.passengerName || "HailO User" }
-                            },
-                            stops: [
-                                {
-                                    type: "START",
-                                    location: { gps: `${transaction.location.latitude},${transaction.location.longitude}` }
+                    // Clean fulfillments: BPP's on_init response includes tags/state/agent,
+                    // but the Gateway strictly rejects these in the BAP's confirm request.
+                    fulfillments: (initOrder.fulfillments || initOrder.fulfillment)
+                        ? (initOrder.fulfillments || initOrder.fulfillment).map(f => {
+                            const { tags, state, vehicle, agent, ...allowedFields } = f;
+                            return allowedFields;
+                        })
+                        : [
+                            {
+                                id: selectedItem.fulfillmentId || "F1",
+                                customer: {
+                                    contact: { phone: transaction.passengerPhone || "9999999999" },
+                                    person: { name: transaction.passengerName || "HailO User" }
                                 },
-                                ...(transaction.location.destination ? [{
-                                    type: "END",
-                                    location: { gps: `${transaction.location.destination.latitude},${transaction.location.destination.longitude}` }
-                                }] : [])
-                            ]
-                        }
-                    ],
+                                stops: [
+                                    {
+                                        type: "START",
+                                        location: { gps: `${transaction.location.latitude},${transaction.location.longitude}` }
+                                    },
+                                    ...(transaction.location.destination ? [{
+                                        type: "END",
+                                        location: { gps: `${transaction.location.destination.latitude},${transaction.location.destination.longitude}` }
+                                    }] : [])
+                                ]
+                            }
+                        ],
                     // TRV10 spec: confirm uses status=PAID (payment collected) and full settlement tags
                     payments: [
                         {
