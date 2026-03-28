@@ -783,19 +783,186 @@ export const ondcService = {
                 order
             };
 
+            const isCancelled = stateCode === 'RIDE_CANCELLED' || stateCode === 'CANCELLED';
+            const finalStatus = isCancelled ? 'CANCELLED' : order.status;
+
             await Transaction.updateOne(
                 { transactionId: transaction_id },
                 {
+                    status: finalStatus,
                     fulfillmentStatus: stateCode,
-                    confirmedOrder: order
+                    confirmedOrder: {
+                        ...order,
+                        status: finalStatus // Ensure we store the synced status
+                    }
                 }
             );
 
             if (io) {
-                io.emit(`status_update_${transaction_id}`, updateData);
-                console.log(`📡 Emitted Status update for ${transaction_id}: ${stateCode}`);
+                io.emit(`status_update_${transaction_id}`, {
+                    ...updateData,
+                    status: finalStatus
+                });
+                console.log(`📡 Emitted Status update for ${transaction_id}: ${stateCode} (Status: ${finalStatus})`);
             }
         }
+    },
+
+    /**
+     * update
+     * Triggered by BAP to update order attributes (e.g. for Flow 6 soft cancellation)
+     */
+    async update(transactionId, updateDetails = {}) {
+        const transaction = await Transaction.findOne({ transactionId });
+        if (!transaction) throw new Error('Transaction not found');
+
+        const messageId = uuidv4();
+        const selectedItem = transaction.selectedItem;
+
+        const payload = {
+            context: {
+                domain: ONDC_CONFIG.DOMAIN,
+                action: 'update',
+                bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
+                bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
+                bpp_id: selectedItem.bppId,
+                bpp_uri: selectedItem.bppUri,
+                location: {
+                    city: { code: ONDC_CONFIG.CITY_CODE },
+                    country: { code: ONDC_CONFIG.COUNTRY_CODE }
+                },
+                message_id: messageId,
+                timestamp: new Date().toISOString(),
+                transaction_id: transactionId,
+                ttl: ONDC_CONFIG.TTL,
+                version: '2.0.1'
+            },
+            message: {
+                update_target: "order",
+                order: {
+                    id: transaction.confirmedOrder?.id,
+                    ...updateDetails
+                }
+            }
+        };
+
+        const authHeader = await becknAuthService.createAuthorizationHeader(payload);
+        const targetBppUri = selectedItem.bppUri;
+
+        try {
+            auditService.log({
+                transactionId, messageId, action: 'update', direction: 'OUTBOUND',
+                payload, headers: { Authorization: authHeader }
+            });
+
+            await Transaction.updateOne({ transactionId }, { status: 'UPDATE_INITIATED' });
+
+            const response = await axios.post(`${targetBppUri}/update`, payload, {
+                headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
+            });
+
+            return { messageId, ack: response.data?.message?.ack };
+        } catch (error) {
+            console.error('Update Request Failed:', error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * onUpdate
+     * Callback for /update
+     */
+    async onUpdate(body) {
+        const { context, message } = body;
+        const { transaction_id } = context;
+
+        if (message.order) {
+            const order = message.order;
+            const stateCode = order.fulfillments?.[0]?.state?.descriptor?.code;
+            
+            // Sync status if it indicates terminal cancellation
+            const finalStatus = (stateCode === 'CANCELLED' || stateCode === 'RIDE_CANCELLED') ? 'CANCELLED' : 'UPDATE_COMPLETED';
+
+            await Transaction.updateOne(
+                { transactionId: transaction_id },
+                {
+                    status: finalStatus,
+                    confirmedOrder: order,
+                    fulfillmentStatus: stateCode || 'UPDATED'
+                }
+            );
+
+            if (io) io.emit(`update_callback_${transaction_id}`, order);
+        }
+    },
+
+    /**
+     * rating
+     * User submits a rating for the trip
+     */
+    async rating(transactionId, ratingValue) {
+        const transaction = await Transaction.findOne({ transactionId });
+        if (!transaction) throw new Error('Transaction not found');
+
+        const messageId = uuidv4();
+        const selectedItem = transaction.selectedItem;
+
+        const payload = {
+            context: {
+                domain: ONDC_CONFIG.DOMAIN,
+                action: 'rating',
+                bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
+                bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
+                bpp_id: selectedItem.bppId,
+                bpp_uri: selectedItem.bppUri,
+                location: {
+                    city: { code: ONDC_CONFIG.CITY_CODE },
+                    country: { code: ONDC_CONFIG.COUNTRY_CODE }
+                },
+                message_id: messageId,
+                timestamp: new Date().toISOString(),
+                transaction_id: transactionId,
+                ttl: ONDC_CONFIG.TTL,
+                version: '2.0.1'
+            },
+            message: {
+                rating: {
+                    id: transaction.confirmedOrder?.id || transactionId,
+                    value: ratingValue.toString(),
+                    category: 'FULFILLMENT'
+                }
+            }
+        };
+
+        const authHeader = await becknAuthService.createAuthorizationHeader(payload);
+        const targetBppUri = selectedItem.bppUri;
+
+        try {
+            auditService.log({
+                transactionId, messageId, action: 'rating', direction: 'OUTBOUND',
+                payload, headers: { Authorization: authHeader }
+            });
+
+            const response = await axios.post(`${targetBppUri}/rating`, payload, {
+                headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
+            });
+
+            await Transaction.updateOne({ transactionId }, { status: 'RATED' });
+
+            return { messageId, ack: response.data?.message?.ack };
+        } catch (error) {
+            console.error('Rating Submission Failed:', error.message);
+            throw error;
+        }
+    },
+
+    /**
+     * onRating
+     */
+    async onRating(body) {
+        const { context, message } = body;
+        console.log(`⭐ Rating ACK received for ${context.transaction_id}`);
+        if (io) io.emit(`rating_ack_${context.transaction_id}`, message);
     },
 
     /**
@@ -961,12 +1128,19 @@ export const ondcService = {
         const { transaction_id } = context;
 
         if (message.order) {
+            const order = message.order;
+            const fulfillment = order.fulfillments?.[0];
+            const stateCode = fulfillment?.state?.descriptor?.code || 'CANCELLED';
+
             await Transaction.updateOne(
                 { transactionId: transaction_id },
                 {
                     status: 'CANCELLED',
-                    fulfillmentStatus: 'CANCELLED',
-                    confirmedOrder: message.order
+                    fulfillmentStatus: stateCode,
+                    confirmedOrder: {
+                        ...order,
+                        status: 'CANCELLED'
+                    }
                 }
             );
 

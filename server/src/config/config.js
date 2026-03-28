@@ -35,7 +35,7 @@ export const ONDC_CONFIG = {
 
     SUBSCRIBER_ID: process.env.ONDC_SUBSCRIBER_ID || 'api.hailone.in',
     SUBSCRIBER_URL: process.env.ONDC_SUBSCRIBER_URL || 'https://api.hailone.in/ondc',
-    KEY_ID: process.env.ONDC_KEY_ID || 'hailo-key-1',
+    KEY_ID: process.env.ONDC_KEY_ID || 'f149bf19-910b-444a-8a82-02784199dc30',
 
   /* ---------------- Keys ---------------- */
 

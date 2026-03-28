@@ -8,7 +8,8 @@ const transactionSchema = new mongoose.Schema({
             'SEARCH_INITIATED', 'SEARCH_COMPLETED',
             'SELECT_INITIATED', 'QUOTE_RECEIVED', 'SELECT_ERROR',
             'INIT_INITIATED', 'INIT_COMPLETED',
-            'CONFIRM_INITIATED', 'CONFIRMED', 'CANCELLED'
+            'CONFIRM_INITIATED', 'CONFIRMED', 'CANCELLED',
+            'RATED', 'COMPLETED', 'UPDATE_INITIATED', 'UPDATE_COMPLETED'
         ],
         default: 'SEARCH_INITIATED'
     },

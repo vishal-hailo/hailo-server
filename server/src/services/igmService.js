@@ -172,8 +172,8 @@ export const igmService = {
 
     // INTERNAL HELPER
     async getBppUriForTransaction(transactionId) {
-        // TODO: In real implementation, query Transaction/Order model
-        return 'https://mock-bpp.com';
+        const transaction = await Transaction.findOne({ transactionId });
+        return transaction?.selectedItem?.bppUri || 'https://pramaan.ondc.org/beta/preprod/mock/seller';
     },
 
     /**
