@@ -601,8 +601,7 @@ export const ondcService = {
                                 ]
                             }
                         ],
-                    // TRV10 spec: confirm must mirror cancellation_terms from on_init
-                    cancellation_terms: initOrder.cancellation_terms || [],
+                    // TRV10 spec: confirm must strictly exclude cancellation_terms if the validator rejects it.
                     // TRV10 spec: confirm uses status=NOT-PAID for on-fulfillment (collected by driver)
                     payments: [
                         {
