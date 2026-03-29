@@ -572,7 +572,11 @@ export const ondcService = {
             message: {
                 order: {
                     provider: { id: selectedItem.providerId },
-                    items: [{ id: selectedItem.id }],
+                    items: transaction.initOrder?.items?.map(item => ({
+                        id: item.id,
+                        fulfillment_ids: item.fulfillment_ids || [selectedItem.fulfillmentId || "F1"],
+                        payment_ids: item.payment_ids || []
+                    })) || [{ id: selectedItem.id }],
                     billing: initOrder.billing,
                     // TRV10 spec: BPP strictly rejects 'tags', 'state', or 'agent' in the BAP's confirm request fulfillments.
                     fulfillments: (initOrder.fulfillments || initOrder.fulfillment)
@@ -599,7 +603,9 @@ export const ondcService = {
                                 ]
                             }
                         ],
-                    // TRV10 spec: confirm uses status=PAID (payment collected) and full settlement tags
+                    // TRV10 spec: confirm must mirror cancellation_terms from on_init
+                    cancellation_terms: initOrder.cancellation_terms || [],
+                    // TRV10 spec: confirm uses status=NOT-PAID for on-fulfillment (collected by driver)
                     payments: [
                         {
                             collected_by: "BPP",
@@ -792,12 +798,13 @@ export const ondcService = {
             }
 
             if (isCompleted) {
-                // Auto-rating for Pramaan Certification
+                // Proactive Status Polling for ONDC Pramaan Certification
+                // After the ride ends, we poll /status one last time to ensure the validator sees 'COMPLETED'
                 if (ONDC_CONFIG.SUBSCRIBER_ID.includes('api.hailone.in')) {
-                    console.log(`📝 Auto-rating trip for Pramaan certification for transaction ${transaction_id}...`);
+                    console.log(`🔍 Proactively polling final status for transaction ${transaction_id} (Pramaan compliance)...`);
                     setTimeout(() => {
-                        this.rating(transaction_id, 5).catch(err => console.error('Auto-rating error:', err.message));
-                    }, 2000);
+                        this.status(transaction_id).catch(err => console.error('Final Status Poll error:', err.message));
+                    }, 5000);
                 }
             }
         }
