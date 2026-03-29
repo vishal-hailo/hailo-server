@@ -572,8 +572,15 @@ export const ondcService = {
             message: {
                 order: {
                     provider: { id: selectedItem.providerId },
-                    items: [{ id: selectedItem.id }],
+                    items: (initOrder.items || [{ id: selectedItem.id }]).map(item => {
+                        // Mirror items precisely including payment_ids if present
+                        return {
+                            id: item.id,
+                            payment_ids: item.payment_ids || (initOrder.payments?.[0]?.id ? [initOrder.payments[0].id] : [])
+                        };
+                    }),
                     billing: initOrder.billing,
+                    cancellation_terms: initOrder.cancellation_terms,
                     // Clean fulfillments: BPP's on_init response includes tags/state/agent,
                     // but the Gateway strictly rejects these in the BAP's confirm request.
                     // Note: 'vehicle' IS allowed in confirm if it contains category/variant.
