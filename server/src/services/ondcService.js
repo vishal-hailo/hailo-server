@@ -613,6 +613,7 @@ export const ondcService = {
                             ),
                             status: "NOT-PAID",
                             type: "ON-FULFILLMENT",
+                            // Mirror the settlement terms exactly as provided by the BPP in on_init
                             tags: [
                                 {
                                     descriptor: { code: "BUYER_FINDER_FEES" },
@@ -632,7 +633,15 @@ export const ondcService = {
                                         { descriptor: { code: "COURT_JURISDICTION" }, value: "New Delhi" },
                                         { descriptor: { code: "DELAY_INTEREST" }, value: "5" },
                                         { descriptor: { code: "STATIC_TERMS" }, value: "https://hailone.in/static-terms" },
-                                        { descriptor: { code: "SETTLEMENT_AMOUNT" }, value: String(initOrder.quote?.price?.value || "") }
+                                        // Mirror the SETTLEMENT_AMOUNT from BPP if present, otherwise fallback to quote value
+                                        { 
+                                            descriptor: { code: "SETTLEMENT_AMOUNT" }, 
+                                            value: (() => {
+                                                const bppSettlementTag = initOrder.payments?.[0]?.tags?.find(t => t.descriptor?.code === 'SETTLEMENT_TERMS');
+                                                const bppAmount = bppSettlementTag?.list?.find(l => l.descriptor?.code === 'SETTLEMENT_AMOUNT')?.value;
+                                                return bppAmount || String(initOrder.quote?.price?.value || "");
+                                            })()
+                                        }
                                     ]
                                 }
                             ]
@@ -784,7 +793,8 @@ export const ondcService = {
             };
 
             const isCancelled = stateCode === 'RIDE_CANCELLED' || stateCode === 'CANCELLED';
-            const finalStatus = isCancelled ? 'CANCELLED' : order.status;
+            const isCompleted = stateCode === 'RIDE_ENDED' || stateCode === 'COMPLETED';
+            const finalStatus = isCancelled ? 'CANCELLED' : (isCompleted ? 'COMPLETED' : order.status);
 
             await Transaction.updateOne(
                 { transactionId: transaction_id },

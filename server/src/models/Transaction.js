@@ -9,7 +9,8 @@ const transactionSchema = new mongoose.Schema({
             'SELECT_INITIATED', 'QUOTE_RECEIVED', 'SELECT_ERROR',
             'INIT_INITIATED', 'INIT_COMPLETED',
             'CONFIRM_INITIATED', 'CONFIRMED', 'CANCELLED',
-            'RATED', 'COMPLETED', 'UPDATE_INITIATED', 'UPDATE_COMPLETED'
+            'RATED', 'COMPLETED', 'UPDATE_INITIATED', 'UPDATE_COMPLETED',
+            'ACTIVE', 'RIDE_ASSIGNED', 'RIDE_ENROUTE_PICKUP', 'RIDE_ARRIVED_PICKUP', 'RIDE_STARTED', 'RIDE_ENDED'
         ],
         default: 'SEARCH_INITIATED'
     },

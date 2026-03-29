@@ -239,6 +239,7 @@ router.post('/on_track', auditIncomingMiddleware, verifyOndcSignature, (req, res
  * Callback for Order Status Updates
  */
 router.post('/on_status', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+    console.log(`📩 Received on_status for transaction: ${req.body?.context?.transaction_id || 'unknown'}`);
     res.json({ message: { ack: { status: 'ACK' } } });
     (async () => {
         try {
