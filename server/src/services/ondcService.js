@@ -574,11 +574,10 @@ export const ondcService = {
                     provider: { id: selectedItem.providerId },
                     items: [{ id: selectedItem.id }],
                     billing: initOrder.billing,
-                    // TRV10 spec: Mirror fulfillments, keeping 'tags' (e.g. ROUTE_INFO) if provided.
-                    // But strip 'state' and 'agent' as BAP doesn't provide them in confirm.
+                    // TRV10 spec: BPP strictly rejects 'tags', 'state', or 'agent' in the BAP's confirm request fulfillments.
                     fulfillments: (initOrder.fulfillments || initOrder.fulfillment)
                         ? (initOrder.fulfillments || initOrder.fulfillment).map(f => {
-                            const { state, agent, ...allowedFields } = f;
+                            const { tags, state, agent, ...allowedFields } = f;
                             return allowedFields;
                         })
                         : [
