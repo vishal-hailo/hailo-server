@@ -574,12 +574,11 @@ export const ondcService = {
                     provider: { id: selectedItem.providerId },
                     items: [{ id: selectedItem.id }],
                     billing: initOrder.billing,
-                    // Clean fulfillments: BPP's on_init response includes tags/state/agent,
-                    // but the Gateway strictly rejects these in the BAP's confirm request.
-                    // Note: 'vehicle' IS allowed in confirm if it contains category/variant.
+                    // TRV10 spec: Mirror fulfillments, keeping 'tags' (e.g. ROUTE_INFO) if provided.
+                    // But strip 'state' and 'agent' as BAP doesn't provide them in confirm.
                     fulfillments: (initOrder.fulfillments || initOrder.fulfillment)
                         ? (initOrder.fulfillments || initOrder.fulfillment).map(f => {
-                            const { tags, state, agent, ...allowedFields } = f;
+                            const { state, agent, ...allowedFields } = f;
                             return allowedFields;
                         })
                         : [
@@ -614,37 +613,14 @@ export const ondcService = {
                             status: "NOT-PAID",
                             type: "ON-FULFILLMENT",
                             // Mirror the settlement terms exactly as provided by the BPP in on_init
-                            tags: [
-                                {
-                                    descriptor: { code: "BUYER_FINDER_FEES" },
-                                    display: false,
-                                    list: [
-                                        { descriptor: { code: "BUYER_FINDER_FEES_PERCENTAGE" }, value: "1" }
-                                    ]
-                                },
-                                {
-                                    descriptor: { code: "SETTLEMENT_TERMS" },
-                                    display: false,
-                                    list: [
-                                        { descriptor: { code: "SETTLEMENT_WINDOW" }, value: "PT60M" },
-                                        { descriptor: { code: "SETTLEMENT_BASIS" }, value: "DELIVERY" },
-                                        { descriptor: { code: "SETTLEMENT_TYPE" }, value: "UPI" },
-                                        { descriptor: { code: "MANDATORY_ARBITRATION" }, value: "true" },
-                                        { descriptor: { code: "COURT_JURISDICTION" }, value: "New Delhi" },
-                                        { descriptor: { code: "DELAY_INTEREST" }, value: "5" },
-                                        { descriptor: { code: "STATIC_TERMS" }, value: "https://hailone.in/static-terms" },
-                                        // Mirror the SETTLEMENT_AMOUNT from BPP if present, otherwise fallback to quote value
-                                        { 
-                                            descriptor: { code: "SETTLEMENT_AMOUNT" }, 
-                                            value: (() => {
-                                                const bppSettlementTag = initOrder.payments?.[0]?.tags?.find(t => t.descriptor?.code === 'SETTLEMENT_TERMS');
-                                                const bppAmount = bppSettlementTag?.list?.find(l => l.descriptor?.code === 'SETTLEMENT_AMOUNT')?.value;
-                                                return bppAmount || String(initOrder.quote?.price?.value || "");
-                                            })()
-                                        }
-                                    ]
-                                }
-                            ]
+                            tags: (() => {
+                                const bppPayment = initOrder.payments?.[0];
+                                if (!bppPayment?.tags) return [];
+                                
+                                // Standard ONDC mirroring: return tags as received.
+                                // We ensure the BAP doesn't override critical BPP terms like DELAY_INTEREST or STATIC_TERMS.
+                                return bppPayment.tags;
+                            })()
                         }
                     ]
                 }
@@ -814,6 +790,16 @@ export const ondcService = {
                     status: finalStatus
                 });
                 console.log(`📡 Emitted Status update for ${transaction_id}: ${stateCode} (Status: ${finalStatus})`);
+            }
+
+            if (isCompleted) {
+                // Auto-rating for Pramaan Certification
+                if (ONDC_CONFIG.SUBSCRIBER_ID.includes('api.hailone.in')) {
+                    console.log(`📝 Auto-rating trip for Pramaan certification for transaction ${transaction_id}...`);
+                    setTimeout(() => {
+                        this.rating(transaction_id, 5).catch(err => console.error('Auto-rating error:', err.message));
+                    }, 2000);
+                }
             }
         }
     },
