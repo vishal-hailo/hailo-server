@@ -798,10 +798,19 @@ export const ondcService = {
                 // Proactive Status Polling for ONDC Pramaan Certification
                 // After the ride ends, we poll /status one last time to ensure the validator sees 'COMPLETED'
                 if (ONDC_CONFIG.SUBSCRIBER_ID.includes('api.hailone.in')) {
-                    console.log(`🔍 Proactively polling final status for transaction ${transaction_id} (Pramaan compliance)...`);
-                    setTimeout(() => {
-                        this.status(transaction_id).catch(err => console.error('Final Status Poll error:', err.message));
-                    }, 5000);
+                    // Check if we already polled to avoid redundant calls
+                    if (transaction.status !== 'COMPLETED' || stateCode === 'RIDE_ENDED') {
+                        console.log(`🔍 Proactively polling final status for transaction ${transaction_id} (Pramaan compliance) in 5s...`);
+                        setTimeout(async () => {
+                            try {
+                                // Explicitly use the object name to avoid 'this' context issues in timers
+                                await ondcService.status(transaction_id);
+                                console.log(`✅ Final proactive status poll sent for ${transaction_id}`);
+                            } catch (err) {
+                                console.error('Final Status Poll execution error:', err.message);
+                            }
+                        }, 5000);
+                    }
                 }
             }
         }

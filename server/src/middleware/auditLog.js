@@ -1,4 +1,5 @@
 import { auditService } from '../services/auditService.js';
+import { ONDC_CONFIG } from '../config/config.js';
 
 /**
  * Middleware to log incoming ONDC requests.
@@ -38,27 +39,22 @@ export const auditIncomingMiddleware = async (req, res, next) => {
 
     const originalJson = res.json;
     res.json = function (body) {
-        const status = body?.message?.ack?.status || 'UNKNOWN';
+        try {
+            const status = body?.message?.ack?.status || 'UNKNOWN';
 
-        // Log the completion (optional, or update previous log)
-        // For simplicity in this MVP, we might just log the request. 
-        // But verifying ACK is good.
-
-        auditService.log({
-            transactionId,
-            messageId, // Response usually references same messageId or a new one? Context should match.
-            action,
-            direction: 'OUTBOUND', // This is the RESPONSE to the inbound request. valid? 
-            // Actually, Audit Logs usually track "Transactions" or "API Calls".
-            // Let's keep it simple: Log the Request Receipt.
-            // If we want to log the response sent back, we can.
-
-            // Let's just log if it was an ERROR/NACK.
-            status: status === 'NACK' ? 'ERROR' : 'SUCCESS',
-            error: status === 'NACK' ? body.error : undefined,
-            source: process.env.ONDC_SUBSCRIBER_ID,
-            destination: context.bap_id || context.bpp_id
-        });
+            auditService.log({
+                transactionId,
+                messageId,
+                action,
+                direction: 'OUTBOUND',
+                status: status === 'NACK' ? 'ERROR' : 'SUCCESS',
+                error: status === 'NACK' ? body.error : undefined,
+                source: process.env.ONDC_SUBSCRIBER_ID || ONDC_CONFIG.SUBSCRIBER_ID,
+                destination: context.bap_id || context.bpp_id
+            });
+        } catch (err) {
+            console.error('Audit Middleware Response Logging Failed:', err.message);
+        }
 
         return originalJson.call(this, body);
     };
