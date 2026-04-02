@@ -748,6 +748,12 @@ export const ondcService = {
         const { context, message } = body;
         const { transaction_id } = context;
 
+        const transaction = await Transaction.findOne({ transactionId: transaction_id });
+        if (!transaction) {
+            console.error(`❌ Transaction ${transaction_id} not found in onStatus callback`);
+            return;
+        }
+
         if (message.order) {
             const order = message.order;
             // TRV10 spec: state is inside fulfillments[0].state.descriptor.code
@@ -798,7 +804,7 @@ export const ondcService = {
                 // Proactive Status Polling for ONDC Pramaan Certification
                 // After the ride ends, we poll /status one last time to ensure the validator sees 'COMPLETED'
                 if (ONDC_CONFIG.SUBSCRIBER_ID.includes('api.hailone.in')) {
-                    // Check if we already polled to avoid redundant calls
+                    // Check if we already polled or if it's the first terminal message
                     if (transaction.status !== 'COMPLETED' || stateCode === 'RIDE_ENDED') {
                         console.log(`🔍 Proactively polling final status for transaction ${transaction_id} (Pramaan compliance) in 5s...`);
                         setTimeout(async () => {
