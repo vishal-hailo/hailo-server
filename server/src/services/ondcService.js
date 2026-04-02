@@ -12,6 +12,8 @@ import RideHistory from '../models/RideHistory.js';
 // In-memory store REMOVED (Replaced by MongoDB)
 // const activeRequests = new Map();
 let io; // Socket.io instance
+const activeStatusPollers = new Map(); // Track periodic status polls
+
 
 export const ondcService = {
 
@@ -431,7 +433,10 @@ export const ondcService = {
             message: {
                 order: {
                     provider: { id: selectedItem.providerId },
-                    items: [{ id: selectedItem.id }],
+                    items: [{ 
+                        id: selectedItem.id,
+                        fulfillment_ids: [selectedItem.fulfillmentId || "F1"]
+                    }],
                     // TRV10 spec: billing requires only `name`
                     billing: {
                         name: transaction.passengerName || "HailO User"
@@ -573,8 +578,12 @@ export const ondcService = {
                 order: {
                     provider: { id: selectedItem.providerId },
                     items: transaction.initOrder?.items?.map(item => ({
-                        id: item.id
-                    })) || [{ id: selectedItem.id }],
+                        id: item.id,
+                        fulfillment_ids: item.fulfillment_ids || [selectedItem.fulfillmentId || "F1"]
+                    })) || [{ 
+                        id: selectedItem.id,
+                        fulfillment_ids: [selectedItem.fulfillmentId || "F1"]
+                    }],
                     billing: initOrder.billing,
                     // TRV10 spec: BPP strictly rejects 'tags', 'state', or 'agent' in the BAP's confirm request fulfillments.
                     fulfillments: (initOrder.fulfillments || initOrder.fulfillment)
@@ -676,7 +685,40 @@ export const ondcService = {
                 io.emit(`confirm_update_${transaction_id}`, message.order);
                 console.log(`📡 Emitted Confirm update (BOOKING SUCCESS) for ${transaction_id}`);
             }
+
+            // Start periodic status polling for ONDC Pramaan Certification
+            if (ONDC_CONFIG.SUBSCRIBER_ID.includes('api.hailone.in')) {
+                this.startStatusPolling(transaction_id);
+            }
         }
+    },
+
+    /**
+     * startStatusPolling
+     * Helper to poll status periodically until terminal state.
+     */
+    async startStatusPolling(transactionId) {
+        if (activeStatusPollers.has(transactionId)) return;
+
+        console.log(`🔄 Starting periodic status polling for ${transactionId}...`);
+        const intervalId = setInterval(async () => {
+            try {
+                const transaction = await Transaction.findOne({ transactionId });
+                if (!transaction || ['COMPLETED', 'CANCELLED'].includes(transaction.status)) {
+                    console.log(`⏹️ Stopping periodic status polling for ${transactionId} (Status: ${transaction?.status || 'NOT_FOUND'})`);
+                    clearInterval(intervalId);
+                    activeStatusPollers.delete(transactionId);
+                    return;
+                }
+
+                await this.status(transactionId);
+                console.log(`📡 Periodic status poll sent for ${transactionId}`);
+            } catch (err) {
+                console.error(`❌ Periodic status poll failed for ${transactionId}:`, err.message);
+            }
+        }, 10000); // 10 seconds
+
+        activeStatusPollers.set(transactionId, intervalId);
     },
 
     /**
@@ -806,7 +848,7 @@ export const ondcService = {
                 if (ONDC_CONFIG.SUBSCRIBER_ID.includes('api.hailone.in')) {
                     // Check if we already polled or if it's the first terminal message
                     if (transaction.status !== 'COMPLETED' || stateCode === 'RIDE_ENDED') {
-                        console.log(`🔍 Proactively polling final status for transaction ${transaction_id} (Pramaan compliance) in 5s...`);
+                        console.log(`🔍 Proactively polling final status for transaction ${transaction_id} (Pramaan compliance) in 10s...`);
                         setTimeout(async () => {
                             try {
                                 // Explicitly use the object name to avoid 'this' context issues in timers
@@ -815,7 +857,7 @@ export const ondcService = {
                             } catch (err) {
                                 console.error('Final Status Poll execution error:', err.message);
                             }
-                        }, 5000);
+                        }, 10000);
                     }
                 }
             }
