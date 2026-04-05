@@ -434,8 +434,7 @@ export const ondcService = {
                 order: {
                     provider: { id: selectedItem.providerId },
                     items: [{ 
-                        id: selectedItem.id,
-                        fulfillment_id: selectedItem.fulfillmentId || "F1"
+                        id: selectedItem.id
                     }],
                     // TRV10 spec: billing requires only `name`
                     billing: {
@@ -578,11 +577,9 @@ export const ondcService = {
                 order: {
                     provider: { id: selectedItem.providerId },
                     items: transaction.initOrder?.items?.map(item => ({
-                        id: item.id,
-                        fulfillment_id: item.fulfillment_id || selectedItem.fulfillmentId || "F1"
+                        id: item.id
                     })) || [{ 
-                        id: selectedItem.id,
-                        fulfillment_id: selectedItem.fulfillmentId || "F1"
+                        id: selectedItem.id
                     }],
                     billing: initOrder.billing,
                     // TRV10 spec: BPP strictly rejects 'tags', 'state', or 'agent' in the BAP's confirm request fulfillments.
