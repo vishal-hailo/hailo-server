@@ -816,8 +816,11 @@ export const ondcService = {
             };
 
             const isCancelled = stateCode === 'RIDE_CANCELLED' || stateCode === 'CANCELLED';
-            const isCompleted = stateCode === 'RIDE_ENDED' || stateCode === 'COMPLETED';
-            const finalStatus = isCancelled ? 'CANCELLED' : (isCompleted ? 'COMPLETED' : order.status);
+            const isCompleted = stateCode === 'COMPLETED' || stateCode === 'RIDE_ENDED';
+            
+            // We only stop the background poller if the root status is officially COMPLETED
+            // In some cases, RIDE_ENDED is received first, then a final poll returns COMPLETED
+            const finalStatus = isCancelled ? 'CANCELLED' : (isCompleted ? 'COMPLETED' : (order.status || 'CONFIRMED'));
 
             await Transaction.updateOne(
                 { transactionId: transaction_id },
