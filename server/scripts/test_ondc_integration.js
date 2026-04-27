@@ -1,10 +1,8 @@
 import axios from 'axios';
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
 import { becknAuthService } from '../src/services/becknAuth.js';
 import { ONDC_CONFIG } from '../src/config/config.js';
-import Transaction from '../src/models/Transaction.js';
 
 dotenv.config();
 
@@ -14,7 +12,7 @@ async function testIntegrationDualPing() {
 
     // Step 1: Tell Render to register the search in its DB
     console.log(`1️⃣ Ping Live Backend to Register Transaction...`);
-    const backendUrl = 'https://api.hailone.in/ondc/search';
+    const backendUrl = process.env.API_SEARCH_URL || 'https://api.hailone.in/ondc/search';
     const initPayload = {
         latitude: 12.971599, longitude: 77.594563,
         destination: { latitude: 12.924158, longitude: 77.622521 }
@@ -32,7 +30,7 @@ async function testIntegrationDualPing() {
 
     // Step 2: Push the transaction directly to Preprod Gateway
     console.log(`\n2️⃣ Broadcasting Payload natively to Preprod Gateway...`);
-    const gatewayUrl = 'https://preprod.gateway.ondc.org/search';
+    const gatewayUrl = process.env.ONDC_GATEWAY_URL || ONDC_CONFIG.GATEWAY_URL;
     const messageId = uuidv4();
 
     const payload = {
@@ -49,7 +47,7 @@ async function testIntegrationDualPing() {
             timestamp: new Date().toISOString(),
             transaction_id: transactionId,
             ttl: 'PT30S',
-            version: '2.0.1'
+                version: ONDC_CONFIG.VERSION
         },
         message: {
             intent: {

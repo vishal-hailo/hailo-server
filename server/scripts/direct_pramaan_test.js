@@ -2,13 +2,13 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
 import { becknAuthService } from '../src/services/becknAuth.js';
-import { ONDC_CONFIG } from '../src/config/ondc.js';
+import { ONDC_CONFIG } from '../src/config/config.js';
 
 dotenv.config();
 
 async function directTest() {
     // The specific mock server from the user's screenshot
-    const pramaanMockUrl = 'https://pramaan.ondc.org/beta/preprod/mock/search';
+    const pramaanMockUrl = process.env.PRAMAAN_MOCK_SEARCH_URL || 'https://pramaan.ondc.org/beta/preprod/mock/search';
     const transactionId = uuidv4();
     
     const payload = {
@@ -17,15 +17,15 @@ async function directTest() {
             country: ONDC_CONFIG.COUNTRY_CODE,
             city: ONDC_CONFIG.CITY_CODE,
             action: 'search',
-            core_version: '2.0.1',
+            version: ONDC_CONFIG.VERSION,
             bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
             bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
-            bpp_id: 'pramaan.ondc.org/beta/preprod/mock',
-            bpp_uri: 'https://pramaan.ondc.org/beta/preprod/mock',
+            bpp_id: process.env.PRAMAAN_MOCK_BPP_ID || 'pramaan.ondc.org/beta/preprod/mock',
+            bpp_uri: process.env.PRAMAAN_MOCK_BPP_URI || 'https://pramaan.ondc.org/beta/preprod/mock',
             transaction_id: transactionId,
             message_id: uuidv4(),
             timestamp: new Date().toISOString(),
-            ttl: 'PT30S',
+            ttl: ONDC_CONFIG.TTL,
         },
         message: {
             intent: {

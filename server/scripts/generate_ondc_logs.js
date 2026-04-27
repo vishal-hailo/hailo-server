@@ -8,6 +8,14 @@ const __dirname = path.dirname(__filename);
 
 const BASE_URL = 'http://localhost:3001';
 const OUTPUT_DIR = path.join(__dirname, '../ondc_logs');
+const DOMAIN = process.env.ONDC_DOMAIN || 'ONDC:TRV10';
+const CITY = process.env.ONDC_CITY || 'std:080';
+const COUNTRY = process.env.ONDC_COUNTRY || 'IND';
+const CORE_VERSION = process.env.ONDC_CORE_VERSION || '1.2.0';
+const BAP_ID = process.env.ONDC_SUBSCRIBER_ID || 'api.hailone.in';
+const BAP_URI = process.env.ONDC_SUBSCRIBER_URL || 'https://api.hailone.in/ondc';
+const BPP_ID = process.env.MOCK_BPP_ID || 'mock-travel-bpp';
+const BPP_URI = process.env.MOCK_BPP_URI || 'https://mock-bpp.com';
 
 // Ensure output directory exists
 if (!fs.existsSync(OUTPUT_DIR)) {
@@ -15,6 +23,23 @@ if (!fs.existsSync(OUTPUT_DIR)) {
 }
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+function callbackContext(txnId, action) {
+    return {
+        domain: DOMAIN,
+        country: COUNTRY,
+        city: CITY,
+        action,
+        core_version: CORE_VERSION,
+        bap_id: BAP_ID,
+        bap_uri: BAP_URI,
+        bpp_id: BPP_ID,
+        bpp_uri: BPP_URI,
+        transaction_id: txnId,
+        message_id: `${action}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        timestamp: new Date().toISOString()
+    };
+}
 
 async function runHappyPath() {
     console.log('\n🚀 Starting HAPPY PATH Simulation...');
@@ -33,20 +58,7 @@ async function runHappyPath() {
     // 2. On_Search (Mock BPP response)
     console.log('2. on_search (Mock BPP)...');
     await axios.post(`${BASE_URL}/ondc/on_search`, {
-        context: {
-            domain: "ONDC:TRV10",
-            country: "IND",
-            city: "std:022",
-            action: "on_search",
-            core_version: "1.2.0",
-            bap_id: "api.hailone.in",
-            bap_uri: "https://api.hailone.in/ondc",
-            bpp_id: "mock-travel-bpp",
-            bpp_uri: "https://mock-bpp.com",
-            transaction_id: txnId,
-            message_id: "msg-search-res",
-            timestamp: new Date().toISOString()
-        },
+        context: callbackContext(txnId, "on_search"),
         message: {
             catalog: {
                 "bpp/descriptor": { "name": "Mock Rides" },
@@ -75,7 +87,7 @@ async function runHappyPath() {
     // 4. On_Select
     console.log('4. on_select (Mock BPP)...');
     await axios.post(`${BASE_URL}/ondc/on_select`, {
-        context: { transaction_id: txnId, action: "on_select", bpp_id: "mock-travel-bpp" },
+        context: callbackContext(txnId, "on_select"),
         message: { order: { quote: { price: { value: "250", currency: "INR" }, breakup: [] } } }
     });
 
@@ -86,8 +98,15 @@ async function runHappyPath() {
     // 6. On_Init
     console.log('6. on_init (Mock BPP)...');
     await axios.post(`${BASE_URL}/ondc/on_init`, {
-        context: { transaction_id: txnId, action: "on_init", bpp_id: "mock-travel-bpp" },
-        message: { order: { payment: { status: "NOT-PAID" } } }
+        context: callbackContext(txnId, "on_init"),
+        message: {
+            order: {
+                id: `order-${txnId.substring(0, 8)}`,
+                payments: [{ id: "pay-1", status: "NOT-PAID", collected_by: "BPP", type: "ON-FULFILLMENT", tags: [] }],
+                billing: { name: "Test User" },
+                fulfillments: [{ id: "fulfillment-1", stops: [{ type: "START", location: { gps: "19.0760,72.8777" } }, { type: "END", location: { gps: "19.0596,72.8295" } }] }]
+            }
+        }
     });
 
     // 7. Confirm
@@ -97,22 +116,40 @@ async function runHappyPath() {
     // 8. On_Confirm
     console.log('8. on_confirm (Mock BPP)...');
     await axios.post(`${BASE_URL}/ondc/on_confirm`, {
-        context: { transaction_id: txnId, action: "on_confirm", bpp_id: "mock-travel-bpp" },
-        message: { order: { id: `order-${txnId.substring(0, 8)}`, state: "Created" } }
+        context: callbackContext(txnId, "on_confirm"),
+        message: {
+            order: {
+                id: `order-${txnId.substring(0, 8)}`,
+                state: "Created",
+                fulfillments: [{ id: "fulfillment-1", state: { descriptor: { code: "AGENT-ASSIGNED" } } }]
+            }
+        }
     });
 
     // 9. Status -> Started
     console.log('9. Status (Ride Started)...');
     await axios.post(`${BASE_URL}/ondc/on_status`, {
-        context: { transaction_id: txnId, action: "on_status", bpp_id: "mock-travel-bpp" },
-        message: { order: { id: `order-${txnId.substring(0, 8)}`, state: "In-Progress", fulfillment: { state: { descriptor: { code: "RIDE_STARTED" } }, start: { location: { gps: "19.0760,72.8777" } } } } }
+        context: callbackContext(txnId, "on_status"),
+        message: {
+            order: {
+                id: `order-${txnId.substring(0, 8)}`,
+                state: "In-Progress",
+                fulfillments: [{ state: { descriptor: { code: "RIDE_STARTED" } }, stops: [{ type: "START", location: { gps: "19.0760,72.8777" } }] }]
+            }
+        }
     });
 
     // 10. Status -> Completed
     console.log('10. Status (Ride Completed)...');
     await axios.post(`${BASE_URL}/ondc/on_status`, {
-        context: { transaction_id: txnId, action: "on_status", bpp_id: "mock-travel-bpp" },
-        message: { order: { id: `order-${txnId.substring(0, 8)}`, state: "Completed", fulfillment: { state: { descriptor: { code: "COMPLETED" } }, start: { location: { gps: "19.0596,72.8295" } } } } }
+        context: callbackContext(txnId, "on_status"),
+        message: {
+            order: {
+                id: `order-${txnId.substring(0, 8)}`,
+                state: "Completed",
+                fulfillments: [{ state: { descriptor: { code: "COMPLETED" } }, stops: [{ type: "END", location: { gps: "19.0596,72.8295" } }] }]
+            }
+        }
     });
 
     // Export Logs
@@ -140,25 +177,32 @@ async function runCancellationPath() {
 
     // 2. Fast forward to Confirm
     await axios.post(`${BASE_URL}/ondc/on_search`, {
-        context: { transaction_id: txnId, action: "on_search", bpp_id: "mock-travel-bpp" },
+        context: callbackContext(txnId, "on_search"),
         message: { catalog: { "bpp/providers": [{ id: "p1", items: [{ id: "i1", price: { value: "100" } }] }] } }
     });
 
     await axios.post(`${BASE_URL}/ondc/select`, { transactionId: txnId, providerId: "p1", itemId: "i1" });
     await axios.post(`${BASE_URL}/ondc/on_select`, {
-        context: { transaction_id: txnId, action: "on_select", bpp_id: "mock-travel-bpp" },
+        context: callbackContext(txnId, "on_select"),
         message: { order: { quote: { price: { value: "100" } } } }
     });
 
     await axios.post(`${BASE_URL}/ondc/init`, { transactionId: txnId });
     await axios.post(`${BASE_URL}/ondc/on_init`, {
-        context: { transaction_id: txnId, action: "on_init", bpp_id: "mock-travel-bpp" },
-        message: { order: { payment: { status: "NOT-PAID" } } }
+        context: callbackContext(txnId, "on_init"),
+        message: {
+            order: {
+                id: `order-${txnId.substring(0, 8)}`,
+                payments: [{ id: "pay-1", status: "NOT-PAID", collected_by: "BPP", type: "ON-FULFILLMENT", tags: [] }],
+                billing: { name: "Test User" },
+                fulfillments: [{ id: "F1", stops: [{ type: "START", location: { gps: "19.0760,72.8777" } }, { type: "END", location: { gps: "19.0596,72.8295" } }] }]
+            }
+        }
     });
 
     await axios.post(`${BASE_URL}/ondc/confirm`, { transactionId: txnId });
     await axios.post(`${BASE_URL}/ondc/on_confirm`, {
-        context: { transaction_id: txnId, action: "on_confirm", bpp_id: "mock-travel-bpp" },
+        context: callbackContext(txnId, "on_confirm"),
         message: { order: { id: `order-${txnId.substring(0, 8)}`, state: "Created" } }
     });
 
@@ -174,7 +218,7 @@ async function runCancellationPath() {
     // 4. On_Cancel
     console.log('🔙 on_cancel (Mock BPP)...');
     await axios.post(`${BASE_URL}/ondc/on_cancel`, {
-        context: { transaction_id: txnId, action: "on_cancel", bpp_id: "mock-travel-bpp" },
+        context: callbackContext(txnId, "on_cancel"),
         message: { order: { id: `order-${txnId.substring(0, 8)}`, state: "Cancelled" } }
     });
 
@@ -209,26 +253,13 @@ async function runIGMPath(completedTxnId) {
         // Wait for the async ONDC /issue call
         await sleep(1000);
 
-        // 2. On_Issue (BPP responding with ACK or Processing)
-        console.log('2. on_issue (Mock BPP response)...');
+        // 2. on_issue (BPP responding with PROCESSING)
+        console.log('2. on_issue (PROCESSING)...');
         await axios.post(`${BASE_URL}/ondc/on_issue`, {
-            context: {
-                domain: "ONDC:TRV10",
-                country: "IND",
-                city: "std:022",
-                action: "on_issue",
-                core_version: "1.0.0",
-                bap_id: "api.hailone.in",
-                bap_uri: "https://api.hailone.in/ondc",
-                bpp_id: "mock-travel-bpp",
-                bpp_uri: "https://mock-bpp.com",
-                transaction_id: completedTxnId,
-                message_id: "msg-issue-res",
-                timestamp: new Date().toISOString()
-            },
+            context: callbackContext(completedTxnId, "on_issue"),
             message: {
                 issue: {
-                    id: "issue-123", // Should ideally match what we sent, but mocking response
+                    id: "issue-123",
                     status: "PROCESSING",
                     issue_actions: {
                         respondent_actions: [{
@@ -242,8 +273,38 @@ async function runIGMPath(completedTxnId) {
             }
         });
 
-        // Export Logs
+        await sleep(1000);
+
+        // 3. on_issue (BPP responding with RESOLVED)
+        console.log('3. on_issue (RESOLVED)...');
+        await axios.post(`${BASE_URL}/ondc/on_issue`, {
+            context: callbackContext(completedTxnId, "on_issue"),
+            message: {
+                issue: {
+                    id: "issue-123",
+                    status: "RESOLVED",
+                    resolution: {
+                        short_desc: "Refund Initiated",
+                        long_desc: "We have initiated a partial refund.",
+                        action_triggered: "REFUND",
+                        refund_amount: "50"
+                    },
+                    issue_actions: {
+                        respondent_actions: [{
+                            respondent_action: "RESOLVED",
+                            short_desc: "Resolved with refund",
+                            updated_at: new Date().toISOString(),
+                            updated_by: { org: { name: "MockProvider" } }
+                        }]
+                    }
+                }
+            }
+        });
+
+        // The igmService.js will auto-send 'RESOLUTION_ACCEPTED' and 'CLOSED' in mock mode.
         await sleep(2000);
+
+        // Export Logs
         console.log('📥 Exporting IGM Logs...');
         const logRes = await axios.get(`${BASE_URL}/api/dev/export-logs?txnId=${completedTxnId}`);
         fs.writeFileSync(path.join(OUTPUT_DIR, 'hailo_igm_grievance.json'), JSON.stringify(logRes.data, null, 2));
@@ -254,10 +315,91 @@ async function runIGMPath(completedTxnId) {
     }
 }
 
+async function runDriverCancellationPath() {
+    console.log('\n🚕 Starting DRIVER CANCELLATION Simulation...');
+
+    // 1. Search to Confirm
+    const searchRes = await axios.post(`${BASE_URL}/ondc/search`, { latitude: 19.0760, longitude: 72.8777 });
+    const txnId = searchRes.data.transactionId;
+    await sleep(200);
+    await axios.post(`${BASE_URL}/ondc/on_search`, { context: callbackContext(txnId, "on_search"), message: { catalog: { "bpp/providers": [{ id: "p1", items: [{ id: "i1", price: { value: "150" } }] }] } } });
+    await axios.post(`${BASE_URL}/ondc/select`, { transactionId: txnId, providerId: "p1", itemId: "i1" });
+    await axios.post(`${BASE_URL}/ondc/on_select`, { context: callbackContext(txnId, "on_select"), message: { order: { quote: { price: { value: "150" } } } } });
+    await axios.post(`${BASE_URL}/ondc/init`, { transactionId: txnId });
+    await axios.post(`${BASE_URL}/ondc/on_init`, { context: callbackContext(txnId, "on_init"), message: { order: { payments: [{ status: "NOT-PAID", id: "pay-1", collected_by: "BPP", type: "ON-FULFILLMENT", tags: [] }], billing: { name: "Test User" }, fulfillments: [{ id: "F1", stops: [{ type: "START", location: { gps: "19.0760,72.8777" } }] }] } } });
+    await axios.post(`${BASE_URL}/ondc/confirm`, { transactionId: txnId });
+    await axios.post(`${BASE_URL}/ondc/on_confirm`, { context: callbackContext(txnId, "on_confirm"), message: { order: { id: `order-dr-${txnId.substring(0,4)}`, state: "Created", fulfillments: [{ id: "F1", state: { descriptor: { code: "AGENT-ASSIGNED" } } }] } } });
+
+    console.log('   (Ride Confirmed)');
+
+    // 2. Driver cancels (Incoming on_status with CANCELLED state)
+    console.log('🔙 Simulating DRIVER CANCELLATION (Incoming on_status)...');
+    await axios.post(`${BASE_URL}/ondc/on_status`, {
+        context: callbackContext(txnId, "on_status"),
+        message: { 
+            order: { 
+                id: `order-dr-${txnId.substring(0,4)}`, 
+                state: "Cancelled", 
+                fulfillments: [{ state: { descriptor: { code: "CANCELLED" } }, cancellation: { cancelled_by: "BPP", reason: { descriptor: { name: "Driver unavailable" } } } }] 
+            } 
+        }
+    });
+
+    // Export
+    await sleep(2000);
+    console.log('📥 Exporting Driver Cancellation Logs...');
+    const logRes = await axios.get(`${BASE_URL}/api/dev/export-logs?txnId=${txnId}`);
+    fs.writeFileSync(path.join(OUTPUT_DIR, 'hailo_driver_cancellation.json'), JSON.stringify(logRes.data, null, 2));
+    console.log('✅ Generated hailo_driver_cancellation.json');
+}
+
+async function runPriceUpdatePath() {
+    console.log('\n💰 Starting PRICE UPDATE Simulation...');
+
+    // 1. Search to Confirm
+    const searchRes = await axios.post(`${BASE_URL}/ondc/search`, { latitude: 19.0760, longitude: 72.8777 });
+    const txnId = searchRes.data.transactionId;
+    await sleep(200);
+    await axios.post(`${BASE_URL}/ondc/on_search`, { context: callbackContext(txnId, "on_search"), message: { catalog: { "bpp/providers": [{ id: "p1", items: [{ id: "i1", price: { value: "300" } }] }] } } });
+    await axios.post(`${BASE_URL}/ondc/select`, { transactionId: txnId, providerId: "p1", itemId: "i1" });
+    await axios.post(`${BASE_URL}/ondc/on_select`, { context: callbackContext(txnId, "on_select"), message: { order: { quote: { price: { value: "300" } } } } });
+    await axios.post(`${BASE_URL}/ondc/init`, { transactionId: txnId });
+    await axios.post(`${BASE_URL}/ondc/on_init`, { context: callbackContext(txnId, "on_init"), message: { order: { payments: [{ status: "NOT-PAID", id: "pay-1", collected_by: "BPP", type: "ON-FULFILLMENT", tags: [] }], billing: { name: "Test User" }, fulfillments: [{ id: "F1", stops: [{ type: "START", location: { gps: "19.0760,72.8777" } }] }] } } });
+    await axios.post(`${BASE_URL}/ondc/confirm`, { transactionId: txnId });
+    await axios.post(`${BASE_URL}/ondc/on_confirm`, { context: callbackContext(txnId, "on_confirm"), message: { order: { id: `order-up-${txnId.substring(0,4)}`, state: "Created", fulfillments: [{ id: "F1", state: { descriptor: { code: "AGENT-ASSIGNED" } } }] } } });
+
+    // 2. Ride Completes
+    await axios.post(`${BASE_URL}/ondc/on_status`, {
+        context: callbackContext(txnId, "on_status"),
+        message: { order: { id: `order-up-${txnId.substring(0,4)}`, state: "Completed", fulfillments: [{ state: { descriptor: { code: "COMPLETED" } } }] } }
+    });
+
+    // 3. Price Update (Incoming on_update)
+    console.log('📈 Simulating PRICE UPDATE (Incoming on_update)...');
+    await axios.post(`${BASE_URL}/ondc/on_update`, {
+        context: callbackContext(txnId, "on_update"),
+        message: { 
+            order: { 
+                id: `order-up-${txnId.substring(0,4)}`, 
+                quote: { price: { value: "350", currency: "INR" }, breakup: [{ title: "Extra Distance", price: { value: "50", currency: "INR" } }] } 
+            } 
+        }
+    });
+
+    // Export
+    await sleep(2000);
+    console.log('📥 Exporting Price Update Logs...');
+    const logRes = await axios.get(`${BASE_URL}/api/dev/export-logs?txnId=${txnId}`);
+    fs.writeFileSync(path.join(OUTPUT_DIR, 'hailo_price_update.json'), JSON.stringify(logRes.data, null, 2));
+    console.log('✅ Generated hailo_price_update.json');
+}
+
 (async () => {
     try {
         const happyTxnId = await runHappyPath();
         await runCancellationPath();
+        await runDriverCancellationPath();
+        await runPriceUpdatePath();
         await runIGMPath(happyTxnId);
         console.log('\n✨ All simulations complete. Check "ondc_logs" folder in server root.');
     } catch (e) {

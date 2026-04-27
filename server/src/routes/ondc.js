@@ -131,7 +131,7 @@ router.get('/results/:transactionId', async (req, res) => {
 
 
 // Middleware to verify ONDC signatures on incoming callbacks
-import { verifyOndcSignature } from '../middleware/ondcAuth.js';
+import { verifyOndcSignature, verifyOndcCallbackContext } from '../middleware/ondcAuth.js';
 import { auditIncomingMiddleware } from '../middleware/auditLog.js';
 
 // Apply Audit Middleware to ALL /ondc routes or specific callbacks?
@@ -145,7 +145,7 @@ import { auditIncomingMiddleware } from '../middleware/auditLog.js';
  * POST /ondc/on_search
  * Callback from BPP/BG with search results.
  */
-router.post('/on_search', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+router.post('/on_search', auditIncomingMiddleware, verifyOndcCallbackContext('on_search'), verifyOndcSignature, (req, res) => {
     res.json({ message: { ack: { status: 'ACK' } } });
     (async () => {
         try {
@@ -160,7 +160,7 @@ router.post('/on_search', auditIncomingMiddleware, verifyOndcSignature, (req, re
  * POST /ondc/on_select
  * Callback with detailed quote.
  */
-router.post('/on_select', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+router.post('/on_select', auditIncomingMiddleware, verifyOndcCallbackContext('on_select'), verifyOndcSignature, (req, res) => {
     res.json({ message: { ack: { status: 'ACK' } } });
     (async () => {
         try {
@@ -175,7 +175,7 @@ router.post('/on_select', auditIncomingMiddleware, verifyOndcSignature, (req, re
  * POST /ondc/on_init
  * Callback with initialization details.
  */
-router.post('/on_init', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+router.post('/on_init', auditIncomingMiddleware, verifyOndcCallbackContext('on_init'), verifyOndcSignature, (req, res) => {
     // 1. Respond ACK immediately to prevent portal timeout
     res.json({ message: { ack: { status: 'ACK' } } });
 
@@ -193,7 +193,7 @@ router.post('/on_init', auditIncomingMiddleware, verifyOndcSignature, (req, res)
  * POST /ondc/on_confirm
  * Callback with confirmation details.
  */
-router.post('/on_confirm', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+router.post('/on_confirm', auditIncomingMiddleware, verifyOndcCallbackContext('on_confirm'), verifyOndcSignature, (req, res) => {
     res.json({ message: { ack: { status: 'ACK' } } });
     (async () => {
         try {
@@ -208,7 +208,7 @@ router.post('/on_confirm', auditIncomingMiddleware, verifyOndcSignature, (req, r
  * POST /ondc/on_cancel
  * Callback for Cancellation
  */
-router.post('/on_cancel', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+router.post('/on_cancel', auditIncomingMiddleware, verifyOndcCallbackContext('on_cancel'), verifyOndcSignature, (req, res) => {
     res.json({ message: { ack: { status: 'ACK' } } });
     (async () => {
         try {
@@ -223,7 +223,7 @@ router.post('/on_cancel', auditIncomingMiddleware, verifyOndcSignature, (req, re
  * POST /ondc/on_track
  * Callback for GPS Tracking - Step 11 in TRV10 Pramaan flow
  */
-router.post('/on_track', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+router.post('/on_track', auditIncomingMiddleware, verifyOndcCallbackContext('on_track'), verifyOndcSignature, (req, res) => {
     res.json({ message: { ack: { status: 'ACK' } } });
     (async () => {
         try {
@@ -238,7 +238,7 @@ router.post('/on_track', auditIncomingMiddleware, verifyOndcSignature, (req, res
  * POST /ondc/on_status
  * Callback for Order Status Updates
  */
-router.post('/on_status', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+router.post('/on_status', auditIncomingMiddleware, verifyOndcCallbackContext('on_status'), verifyOndcSignature, (req, res) => {
     console.log(`📩 Received on_status for transaction: ${req.body?.context?.transaction_id || 'unknown'}`);
     res.json({ message: { ack: { status: 'ACK' } } });
     (async () => {
@@ -254,7 +254,7 @@ router.post('/on_status', auditIncomingMiddleware, verifyOndcSignature, (req, re
  * POST /ondc/on_issue
  * Callback for Issue Status Updates
  */
-router.post('/on_issue', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+router.post('/on_issue', auditIncomingMiddleware, verifyOndcCallbackContext('on_issue'), verifyOndcSignature, (req, res) => {
     res.json({ message: { ack: { status: 'ACK' } } });
     (async () => {
         try {
@@ -269,7 +269,7 @@ router.post('/on_issue', auditIncomingMiddleware, verifyOndcSignature, (req, res
  * POST /ondc/on_receiver_recon
  * Callback for Settlement/Reconciliation
  */
-router.post('/on_receiver_recon', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+router.post('/on_receiver_recon', auditIncomingMiddleware, verifyOndcCallbackContext('on_receiver_recon'), verifyOndcSignature, (req, res) => {
     res.json({ message: { ack: { status: 'ACK' } } });
     (async () => {
         try {
@@ -284,7 +284,7 @@ router.post('/on_receiver_recon', auditIncomingMiddleware, verifyOndcSignature, 
  * POST /ondc/on_rating
  * Callback for Rating ACK
  */
-router.post('/on_rating', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+router.post('/on_rating', auditIncomingMiddleware, verifyOndcCallbackContext('on_rating'), verifyOndcSignature, (req, res) => {
     res.json({ message: { ack: { status: 'ACK' } } });
     (async () => {
         try {
@@ -299,7 +299,7 @@ router.post('/on_rating', auditIncomingMiddleware, verifyOndcSignature, (req, re
  * POST /ondc/on_update
  * Callback for Order Updates (Soft Cancellation penalty, driver change)
  */
-router.post('/on_update', auditIncomingMiddleware, verifyOndcSignature, (req, res) => {
+router.post('/on_update', auditIncomingMiddleware, verifyOndcCallbackContext('on_update'), verifyOndcSignature, (req, res) => {
     res.json({ message: { ack: { status: 'ACK' } } });
     (async () => {
         try {

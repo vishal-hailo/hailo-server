@@ -45,14 +45,14 @@ async function runSelectTest() {
             context: {
                 domain: ONDC_CONFIG.DOMAIN,
                 action: "select",
-                version: "2.0.1",
+                version: ONDC_CONFIG.VERSION,
                 bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
                 bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
                 bpp_id: selectedQuote.bppId,
                 bpp_uri: selectedQuote.bppUri,
                location: {
-                city: { code: "std:080" },
-                country: { code: "IND" }
+                city: { code: ONDC_CONFIG.CITY_CODE },
+                country: { code: ONDC_CONFIG.COUNTRY_CODE }
             },
                 message_id: messageId,
                 transaction_id: transactionId,

@@ -47,12 +47,13 @@ export const ONDC_CONFIG = {
 
   /* ---------------- Network ---------------- */
 
-  REGISTRY_URL: "https://preprod.registry.ondc.org/lookup",
-  GATEWAY_URL: "https://preprod.gateway.ondc.org/search",
+  REGISTRY_URL: process.env.ONDC_REGISTRY_URL || "https://preprod.registry.ondc.org/lookup",
+  GATEWAY_URL: process.env.ONDC_GATEWAY_URL || "https://preprod.gateway.ondc.org/search",
 
   /* ---------------- Protocol ---------------- */
 
-  CORE_VERSION: "1.2.0",
+  CORE_VERSION: process.env.ONDC_CORE_VERSION || "1.2.0",
+  VERSION: process.env.ONDC_VERSION || "2.1.0",
   DOMAIN: "ONDC:TRV10",
 
   COUNTRY_CODE: "IND",

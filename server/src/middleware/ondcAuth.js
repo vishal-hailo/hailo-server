@@ -1,4 +1,5 @@
 import { becknAuthService } from '../services/becknAuth.js';
+import { ONDC_CONFIG } from '../config/config.js';
 
 /**
  * Middleware to verify ONDC Authorization header.
@@ -7,11 +8,17 @@ import { becknAuthService } from '../services/becknAuth.js';
 export const verifyOndcSignature = async (req, res, next) => {
     try {
         const authHeader = req.headers['authorization'];
+        const allowBypass = process.env.ONDC_ALLOW_INSECURE_CALLBACKS === 'true';
 
         if (!authHeader) {
-            console.warn('⚠️ Missing Authorization Header');
-            // Un-comment to enforce strictly
-            // return res.status(401).json({ message: { ack: { status: 'NACK' } }, error: { code: '30000', message: 'Missing Authorization Header' } });
+            if (process.env.ONDC_MOCK === 'true' || allowBypass) {
+                console.warn('⚠️ Missing Authorization Header allowed in mock/insecure mode');
+                return next();
+            }
+            return res.status(401).json({
+                message: { ack: { status: 'NACK' } },
+                error: { code: '30000', message: 'Missing Authorization Header' }
+            });
         }
 
         if (process.env.ONDC_MOCK === 'true') {
@@ -24,11 +31,10 @@ export const verifyOndcSignature = async (req, res, next) => {
             return next();
         }
 
-        // Production Mode: Strict Verification
-        // EXCEPTION: Allow Pramaan Mock Server even in Prod mode for testing
-        const senderDomain = req.body?.context?.bpp_uri || req.body?.context?.bap_uri || '';
-        if (senderDomain.includes('pramaan.ondc.org') || senderDomain.includes('mock')) {
-            console.warn('⚠️ Allowing Pramaan Mock Request (Signature Verification skipped for Testing)');
+        // Explicit insecure mode is required for bypassing signatures in non-mock environments.
+        // This prevents accidental production bypass for domains containing "mock"/"pramaan".
+        if (allowBypass) {
+            console.warn('⚠️ ONDC_ALLOW_INSECURE_CALLBACKS=true, skipping signature verification');
             return next();
         }
 
@@ -42,4 +48,32 @@ export const verifyOndcSignature = async (req, res, next) => {
             error: { code: '30000', message: 'Invalid Signature', path: error.message }
         });
     }
+};
+
+export const verifyOndcCallbackContext = (expectedAction) => (req, res, next) => {
+    const context = req.body?.context || {};
+    const { action, transaction_id, message_id, domain } = context;
+
+    if (!action || !transaction_id || !message_id) {
+        return res.status(400).json({
+            message: { ack: { status: 'NACK' } },
+            error: { code: '30000', message: 'Invalid callback context: action, transaction_id, message_id are required' }
+        });
+    }
+
+    if (expectedAction && action !== expectedAction) {
+        return res.status(400).json({
+            message: { ack: { status: 'NACK' } },
+            error: { code: '30000', message: `Invalid callback action: expected ${expectedAction}, got ${action}` }
+        });
+    }
+
+    if (domain && ONDC_CONFIG.DOMAIN && domain !== ONDC_CONFIG.DOMAIN) {
+        return res.status(400).json({
+            message: { ack: { status: 'NACK' } },
+            error: { code: '30000', message: `Invalid callback domain: expected ${ONDC_CONFIG.DOMAIN}, got ${domain}` }
+        });
+    }
+
+    next();
 };

@@ -143,26 +143,98 @@ export const igmService = {
         }
 
         // Update status
-        // Usually status is inside message.issue.status or inferred from actions
         if (issue.status) {
-            grievance.status = issue.status; // OPEN, CLOSED, PROCESSING
+            grievance.status = issue.status; // OPEN, CLOSED, PROCESSING, RESOLVED
         }
 
         // Check for resolution
-        if (resolution) {
+        if (issue.status === 'RESOLVED' && resolution) {
             grievance.resolution = {
                 shortDesc: resolution.short_desc,
                 longDesc: resolution.long_desc,
                 actionTriggered: resolution.action_triggered,
                 refundAmount: resolution.refund_amount
             };
+            
+            // Auto-accept resolution in mock mode or based on business logic
+            if (process.env.ONDC_MOCK === 'true') {
+                console.log(`🚧 ONDC_MOCK: Auto-accepting resolution for ${issueId}`);
+                setTimeout(() => this.closeIssue(issueId, 'RESOLUTION_ACCEPTED'), 1000);
+            }
         }
 
-        // Add action log if needed (skipping for brevity)
         grievance.updated_at = new Date();
         await grievance.save();
 
         console.log(`Updated Grievance ${issueId} status to ${grievance.status}`);
+    },
+
+    /**
+     * closeIssue
+     * Closed by Buyer App (HailO) after resolution is accepted
+     */
+    async closeIssue(issueId, action = 'CLOSED') {
+        const grievance = await Grievance.findOne({ issueId });
+        if (!grievance) throw new Error('Grievance not found');
+
+        const messageId = uuidv4();
+        const bppUri = await this.getBppUriForTransaction(grievance.transactionId);
+
+        const payload = {
+            context: {
+                domain: ONDC_CONFIG.DOMAIN,
+                country: ONDC_CONFIG.COUNTRY_CODE,
+                city: ONDC_CONFIG.CITY_CODE,
+                action: 'issue',
+                core_version: '1.0.0',
+                bap_id: ONDC_CONFIG.SUBSCRIBER_ID,
+                bap_uri: ONDC_CONFIG.SUBSCRIBER_URL,
+                bpp_id: 'mock-bpp-id', 
+                bpp_uri: bppUri,
+                transaction_id: grievance.transactionId,
+                message_id: messageId,
+                timestamp: new Date().toISOString(),
+                ttl: ONDC_CONFIG.TTL,
+            },
+            message: {
+                issue: {
+                    id: issueId,
+                    status: "CLOSED",
+                    issue_actions: {
+                        complainant_actions: [
+                            {
+                                complainant_action: action,
+                                short_desc: action === 'RESOLUTION_ACCEPTED' ? "Resolution accepted" : "Issue closed",
+                                updated_at: new Date().toISOString(),
+                                updated_by: {
+                                    org: { name: "HailO::BuyerApp" },
+                                    contact: { phone: "1234567890", email: "support@hailo.app" },
+                                    person: { name: "Support Bot" }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        };
+
+        const authHeader = await becknAuthService.createAuthorizationHeader(payload);
+
+        try {
+            if (process.env.ONDC_MOCK === 'true') {
+                console.log(`🚧 ONDC_MOCK: Simulate /issue (CLOSED) sent to ${bppUri}`);
+            } else {
+                await axios.post(`${bppUri}/issue`, payload, {
+                    headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
+                });
+            }
+            grievance.status = 'CLOSED';
+            await grievance.save();
+        } catch (error) {
+            console.error('IGM Close Issue Failed:', error.message);
+        }
+
+        return grievance;
     },
 
     // Helper to get Status

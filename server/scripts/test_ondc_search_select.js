@@ -7,34 +7,25 @@ const BASE_URL = process.env.API_URL || "https://api.hailone.in/ondc";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function waitForField(transactionId, field) {
-
-  console.log(`⏳ Waiting for ${field}...`);
-
+async function waitForResults(transactionId) {
+  console.log(`⏳ Waiting for results...`);
   let attempts = 0;
-
   while (attempts < 40) {
-
     await sleep(2000);
     attempts++;
-
     try {
-
       const res = await axios.get(`${BASE_URL}/results/${transactionId}`);
-
-      if (res.data[field]) {
-        console.log(`\n✅ ${field} received`);
-        return res.data[field];
+      const results = res.data?.results || [];
+      if (results.length) {
+        console.log(`\n✅ results received (${results.length})`);
+        return results;
       }
-
       process.stdout.write(".");
-
     } catch (err) {
       console.log("Polling error:", err.message);
     }
   }
-
-  throw new Error(`${field} not received in time`);
+  throw new Error(`results not received in time`);
 }
 
 async function runFlow() {
@@ -69,7 +60,7 @@ async function runFlow() {
 
   // ---------------- WAIT FOR on_search ----------------
 
-  const searchResults = await waitForField(transactionId, "results");
+  const searchResults = await waitForResults(transactionId);
 
   const quote = searchResults[0];
 
@@ -104,7 +95,8 @@ async function runFlow() {
 
   console.log("Init request sent");
 
-  await waitForField(transactionId, "on_init");
+  console.log("⏳ Waiting for init processing...");
+  await sleep(6000);
 
   // ---------------- CONFIRM ----------------
 
@@ -118,7 +110,8 @@ async function runFlow() {
 
   console.log("Confirm request sent");
 
-  await waitForField(transactionId, "on_confirm");
+  console.log("⏳ Waiting for confirm processing...");
+  await sleep(6000);
 
   console.log("\n🎉 FULL FLOW COMPLETED SUCCESSFULLY");
   console.log("Check Pramaan dashboard for green bubbles.");

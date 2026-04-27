@@ -14,6 +14,28 @@ import RideHistory from '../models/RideHistory.js';
 let io; // Socket.io instance
 const activeStatusPollers = new Map(); // Track periodic status polls
 
+async function isDuplicateCallbackEvent(context = {}) {
+    const transactionId = context.transaction_id;
+    const messageId = context.message_id;
+    const action = context.action;
+
+    if (!transactionId || !messageId || !action) {
+        return false;
+    }
+
+    const callbackEventKey = `${action}:${messageId}`;
+    const updated = await Transaction.findOneAndUpdate(
+        {
+            transactionId,
+            processedCallbackEvents: { $ne: callbackEventKey }
+        },
+        { $addToSet: { processedCallbackEvents: callbackEventKey } },
+        { new: true }
+    );
+
+    return !updated;
+}
+
 
 export const ondcService = {
 
@@ -44,7 +66,7 @@ export const ondcService = {
                 message_id: messageId,
                 timestamp: new Date().toISOString(),
                 ttl: ONDC_CONFIG.TTL,
-                version: '2.0.1'
+                version: ONDC_CONFIG.VERSION
             },
             message: {
                 intent: {
@@ -139,6 +161,10 @@ export const ondcService = {
     async onSearch(body) {
         const { context, message } = body;
         const { transaction_id } = context;
+        if (await isDuplicateCallbackEvent(context)) {
+            console.warn(`Duplicate callback ignored: ${context.action}:${context.message_id}`);
+            return;
+        }
 
         const transaction = await Transaction.findOne({ transactionId: transaction_id });
         if (!transaction) {
@@ -301,7 +327,7 @@ export const ondcService = {
                 timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
                 ttl: 'PT120S',
-                version: '2.0.1'
+                version: ONDC_CONFIG.VERSION
             },
             message: {
                 order: {
@@ -373,6 +399,10 @@ export const ondcService = {
     async onSelect(body) {
         const { context, message } = body;
         const { transaction_id } = context;
+        if (await isDuplicateCallbackEvent(context)) {
+            console.warn(`Duplicate callback ignored: ${context.action}:${context.message_id}`);
+            return;
+        }
 
         if (message.order && message.order.quote) {
             const quote = message.order.quote;
@@ -428,7 +458,7 @@ export const ondcService = {
                 timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
                 ttl: ONDC_CONFIG.TTL, // P15M in some v2 specs, but TTL is fine for now
-                version: '2.0.1'
+                version: ONDC_CONFIG.VERSION
             },
             message: {
                 order: {
@@ -527,6 +557,10 @@ export const ondcService = {
     async onInit(body) {
         const { context, message } = body;
         const { transaction_id } = context;
+        if (await isDuplicateCallbackEvent(context)) {
+            console.warn(`Duplicate callback ignored: ${context.action}:${context.message_id}`);
+            return;
+        }
 
         if (message.order) {
             await Transaction.updateOne(
@@ -571,7 +605,7 @@ export const ondcService = {
                 timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
                 ttl: ONDC_CONFIG.TTL,
-                version: '2.0.1'
+                version: ONDC_CONFIG.VERSION
             },
             message: {
                 order: {
@@ -668,6 +702,10 @@ export const ondcService = {
     async onConfirm(body) {
         const { context, message } = body;
         const { transaction_id } = context;
+        if (await isDuplicateCallbackEvent(context)) {
+            console.warn(`Duplicate callback ignored: ${context.action}:${context.message_id}`);
+            return;
+        }
 
         if (message.order) {
             await Transaction.updateOne(
@@ -745,7 +783,7 @@ export const ondcService = {
                 timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
                 ttl: ONDC_CONFIG.TTL,
-                version: '2.0.1'
+                version: ONDC_CONFIG.VERSION
             },
             message: {
                 order_id: confirmedOrder.id
@@ -786,6 +824,10 @@ export const ondcService = {
     async onStatus(body) {
         const { context, message } = body;
         const { transaction_id } = context;
+        if (await isDuplicateCallbackEvent(context)) {
+            console.warn(`Duplicate callback ignored: ${context.action}:${context.message_id}`);
+            return;
+        }
 
         const transaction = await Transaction.findOne({ transactionId: transaction_id });
         if (!transaction) {
@@ -925,7 +967,7 @@ export const ondcService = {
                 timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
                 ttl: ONDC_CONFIG.TTL,
-                version: '2.0.1'
+                version: ONDC_CONFIG.VERSION
             },
             message: {
                 update_target: "order",
@@ -965,6 +1007,10 @@ export const ondcService = {
     async onUpdate(body) {
         const { context, message } = body;
         const { transaction_id } = context;
+        if (await isDuplicateCallbackEvent(context)) {
+            console.warn(`Duplicate callback ignored: ${context.action}:${context.message_id}`);
+            return;
+        }
 
         if (message.order) {
             const order = message.order;
@@ -1013,7 +1059,7 @@ export const ondcService = {
                 timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
                 ttl: ONDC_CONFIG.TTL,
-                version: '2.0.1'
+                version: ONDC_CONFIG.VERSION
             },
             message: {
                 rating: {
@@ -1051,6 +1097,10 @@ export const ondcService = {
      */
     async onRating(body) {
         const { context, message } = body;
+        if (await isDuplicateCallbackEvent(context)) {
+            console.warn(`Duplicate callback ignored: ${context.action}:${context.message_id}`);
+            return;
+        }
         console.log(`⭐ Rating ACK received for ${context.transaction_id}`);
         if (io) io.emit(`rating_ack_${context.transaction_id}`, message);
     },
@@ -1082,7 +1132,7 @@ export const ondcService = {
                 timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
                 ttl: ONDC_CONFIG.TTL,
-                version: '2.0.1'
+                version: ONDC_CONFIG.VERSION
             },
             message: {
                 // TRV10 spec: track only needs the order_id
@@ -1123,6 +1173,10 @@ export const ondcService = {
     async onTrack(body) {
         const { context, message } = body;
         const { transaction_id } = context;
+        if (await isDuplicateCallbackEvent(context)) {
+            console.warn(`Duplicate callback ignored: ${context.action}:${context.message_id}`);
+            return;
+        }
 
         // TRV10 spec: message.tracking.location.gps = "lat, lng"
         const tracking = message?.tracking;
@@ -1176,7 +1230,7 @@ export const ondcService = {
                 timestamp: new Date().toISOString(),
                 transaction_id: transactionId,
                 ttl: ONDC_CONFIG.TTL,
-                version: '2.0.1'
+                version: ONDC_CONFIG.VERSION
             },
             message: {
                 order_id: confirmedOrder.id,
@@ -1216,6 +1270,10 @@ export const ondcService = {
     async onCancel(body) {
         const { context, message } = body;
         const { transaction_id } = context;
+        if (await isDuplicateCallbackEvent(context)) {
+            console.warn(`Duplicate callback ignored: ${context.action}:${context.message_id}`);
+            return;
+        }
 
         if (message.order) {
             const order = message.order;

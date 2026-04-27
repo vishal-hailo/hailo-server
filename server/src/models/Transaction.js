@@ -43,7 +43,8 @@ const transactionSchema = new mongoose.Schema({
         latitude: Number,
         longitude: Number,
         timestamp: Date
-    }]
+    }],
+    processedCallbackEvents: { type: [String], default: [] }
 }, { timestamps: true });
 
 // transactionSchema.pre('save', function (next) {
