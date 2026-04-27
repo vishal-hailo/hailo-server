@@ -25,6 +25,9 @@ async function waitForResults(transactionId) {
 async function runFlow() {
 
   try {
+    // #region agent log
+    globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix-2',hypothesisId:'H6',location:'server/scripts/pramaan_test_runner_new.js:run-start',message:'Pramaan runner started',data:{baseUrl:BASE_URL,searchTimeoutMs:SEARCH_TIMEOUT_MS,pollIntervalMs:POLL_INTERVAL_MS},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     console.log("\n📦 Running SEARCH");
 
@@ -37,6 +40,9 @@ async function runFlow() {
       }
     });
     const transactionId = search.data?.transactionId;
+    // #region agent log
+    globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix-2',hypothesisId:'H7',location:'server/scripts/pramaan_test_runner_new.js:search-response',message:'Search API responded',data:{hasTransactionId:!!transactionId,responseKeys:Object.keys(search.data||{})},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     if (!transactionId) {
       throw new Error("Search did not return transactionId");
@@ -116,6 +122,9 @@ async function runFlow() {
     console.log("\n🎉 FLOW 1a COMPLETED\n");
 
   } catch (error) {
+    // #region agent log
+    globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix-2',hypothesisId:'H8',location:'server/scripts/pramaan_test_runner_new.js:run-error',message:'Pramaan runner failed',data:{errorMessage:error?.message||'unknown',httpStatus:error?.response?.status||null},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     console.log("\n❌ FLOW FAILED");
 

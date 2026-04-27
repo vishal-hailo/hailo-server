@@ -10,13 +10,25 @@ const router = express.Router();
 router.post('/search', async (req, res) => {
     try {
         const { latitude, longitude, destination } = req.body;
+        // #region agent log
+        globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix',hypothesisId:'H1',location:'server/src/routes/ondc.js:search-entry',message:'Incoming /ondc/search request',data:{hasLatitude:latitude!==undefined,hasLongitude:longitude!==undefined,hasDestination:!!destination},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         if (!latitude || !longitude) {
+            // #region agent log
+            globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix',hypothesisId:'H1',location:'server/src/routes/ondc.js:search-validation',message:'Search validation failed',data:{reason:'missing_lat_lng'},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             return res.status(400).json({ error: 'Location required' });
         }
         // Pass destination (optional) to service
         const result = await ondcService.search({ latitude, longitude, destination });
+        // #region agent log
+        globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix',hypothesisId:'H1',location:'server/src/routes/ondc.js:search-success',message:'Search route returning transactionId',data:{hasTransactionId:!!result?.transactionId},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         res.json(result);
     } catch (error) {
+        // #region agent log
+        globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix',hypothesisId:'H1',location:'server/src/routes/ondc.js:search-error',message:'Search route failed',data:{errorMessage:error?.message||'unknown'},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         res.status(500).json({ error: error.message });
     }
 });

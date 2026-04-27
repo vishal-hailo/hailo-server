@@ -53,7 +53,7 @@ export const ONDC_CONFIG = {
   /* ---------------- Protocol ---------------- */
 
   CORE_VERSION: process.env.ONDC_CORE_VERSION || "1.2.0",
-  VERSION: process.env.ONDC_VERSION || "2.1.0",
+  VERSION: process.env.ONDC_VERSION || "2.0.1",
   DOMAIN: "ONDC:TRV10",
 
   COUNTRY_CODE: "IND",

@@ -51,6 +51,9 @@ export const ondcService = {
     async search(location) {
         const transactionId = uuidv4();
         const messageId = uuidv4();
+        // #region agent log
+        globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix',hypothesisId:'H2',location:'server/src/services/ondcService.js:search-entry',message:'ondcService.search started',data:{transactionId,ondcVersion:ONDC_CONFIG.VERSION,ondcMock:process.env.ONDC_MOCK==='true'},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
 
         const payload = {
             context: {
@@ -111,6 +114,9 @@ export const ondcService = {
 
         // Get gateway URL
         const gatewayUrl = await ondcRegistryService.getGatewayUrl();
+        // #region agent log
+        globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix',hypothesisId:'H3',location:'server/src/services/ondcService.js:search-gateway-url',message:'Gateway URL resolved',data:{gatewayUrl,contextVersion:payload?.context?.version},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
 
         // Create Auth Header
         const authHeader = await becknAuthService.createAuthorizationHeader(payload);
@@ -132,6 +138,9 @@ export const ondcService = {
 
             if (process.env.ONDC_MOCK === 'true') {
                 console.log('🚧 ONDC_MOCK: Skipping Gateway Call');
+                // #region agent log
+                globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix',hypothesisId:'H4',location:'server/src/services/ondcService.js:search-mock-skip',message:'Gateway call skipped due to ONDC_MOCK',data:{transactionId},timestamp:Date.now()})}).catch(()=>{});
+                // #endregion
             } else {
                 const response = await axios.post(gatewayUrl, payload, {
                     headers: {
@@ -139,6 +148,9 @@ export const ondcService = {
                         'Content-Type': 'application/json'
                     }
                 });
+                // #region agent log
+                globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix',hypothesisId:'H5',location:'server/src/services/ondcService.js:search-gateway-response',message:'Gateway response received',data:{ackStatus:response?.data?.message?.ack?.status||'none',hasError:!!response?.data?.error},timestamp:Date.now()})}).catch(()=>{});
+                // #endregion
                 
                 if (response.data?.message?.ack?.status === 'NACK') {
                     console.error('⛔ Gateway NACK:', JSON.stringify(response.data.error));
@@ -149,6 +161,9 @@ export const ondcService = {
             return { transactionId };
 
         } catch (error) {
+            // #region agent log
+            globalThis.fetch&&globalThis.fetch('http://127.0.0.1:7660/ingest/c90b4339-613f-44e5-b034-2ec0c3e5f348',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'697449'},body:JSON.stringify({sessionId:'697449',runId:'run-pre-fix',hypothesisId:'H5',location:'server/src/services/ondcService.js:search-error',message:'Search flow failed before ACK',data:{errorMessage:error?.message||'unknown',httpStatus:error?.response?.status||null},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
             console.error('ONDC Search Failed:', error.response?.data || error.message);
             throw new Error('Failed to initiate ONDC search');
         }
@@ -858,11 +873,28 @@ export const ondcService = {
             };
 
             const isCancelled = stateCode === 'RIDE_CANCELLED' || stateCode === 'CANCELLED';
-            const isCompleted = stateCode === 'COMPLETED' || stateCode === 'RIDE_ENDED';
-            
-            // We only stop the background poller if the root status is officially COMPLETED
-            // In some cases, RIDE_ENDED is received first, then a final poll returns COMPLETED
-            const finalStatus = isCancelled ? 'CANCELLED' : (isCompleted ? 'COMPLETED' : (order.status || 'CONFIRMED'));
+            // ⚠️ BUG FIX: RIDE_ENDED is NOT the same as COMPLETED.
+            // COMPLETED is a distinct state the BPP sends AFTER the Pramaan portal's
+            // "Mark Payment Done" action triggers an on_update + final status poll.
+            // If we treat RIDE_ENDED as COMPLETED here, the background poller stops
+            // and we never catch the real COMPLETED on_status. Keep polling until COMPLETED.
+            const isCompleted = stateCode === 'COMPLETED';
+            const isRideEnded = stateCode === 'RIDE_ENDED';
+
+            // Only stop the poller when BPP actually confirms COMPLETED state.
+            // RIDE_ENDED leaves the poller running so it picks up the final COMPLETED.
+            let finalStatus;
+            if (isCancelled) {
+                finalStatus = 'CANCELLED';
+            } else if (isCompleted) {
+                finalStatus = 'COMPLETED';
+            } else if (isRideEnded) {
+                // Pre-completion: ride ended but payment not yet marked done.
+                // Keep a distinct DB status so the poller keeps running.
+                finalStatus = 'RIDE_ENDED';
+            } else {
+                finalStatus = order.status || 'CONFIRMED';
+            }
 
             await Transaction.updateOne(
                 { transactionId: transaction_id },
@@ -918,23 +950,23 @@ export const ondcService = {
                 }
             }
 
+            if (isRideEnded) {
+                // RIDE_ENDED state: the background poller is still running (because DB status is 'RIDE_ENDED',
+                // not 'COMPLETED'). The Pramaan portal's "Mark Payment Done" button will trigger:
+                //   BPP → on_update (unsolicited, with recomputed charges)
+                //   BAP sends /status
+                //   BPP → on_status with COMPLETED
+                // Our onUpdate handler will send the /status call. Nothing extra needed here.
+                console.log(`⏳ [${transaction_id}] RIDE_ENDED – waiting for portal "Mark Payment Done" → on_update → COMPLETED`);
+            }
+
             if (isCompleted) {
-                // Proactive Status Polling for ONDC Pramaan Certification
-                // After the ride ends, we poll /status one last time to ensure the validator sees 'COMPLETED'
-                if (ONDC_CONFIG.SUBSCRIBER_ID.includes('api.hailone.in')) {
-                    // Check if we already polled or if it's the first terminal message
-                    if (transaction.status !== 'COMPLETED' || stateCode === 'RIDE_ENDED') {
-                        console.log(`🔍 Proactively polling final status for transaction ${transaction_id} (Pramaan compliance) in 10s...`);
-                        setTimeout(async () => {
-                            try {
-                                // Explicitly use the object name to avoid 'this' context issues in timers
-                                await ondcService.status(transaction_id);
-                                console.log(`✅ Final proactive status poll sent for ${transaction_id}`);
-                            } catch (err) {
-                                console.error('Final Status Poll execution error:', err.message);
-                            }
-                        }, 10000);
-                    }
+                // Ride is truly done. Stop the interval poller.
+                const pollerInterval = activeStatusPollers.get(transaction_id);
+                if (pollerInterval) {
+                    clearInterval(pollerInterval);
+                    activeStatusPollers.delete(transaction_id);
+                    console.log(`⏹️ [${transaction_id}] COMPLETED – stopped background status poller.`);
                 }
             }
         }
@@ -1015,9 +1047,11 @@ export const ondcService = {
         if (message.order) {
             const order = message.order;
             const stateCode = order.fulfillments?.[0]?.state?.descriptor?.code;
-            
+            const paymentStatus = order.payments?.[0]?.status;
+
             // Sync status if it indicates terminal cancellation
-            const finalStatus = (stateCode === 'CANCELLED' || stateCode === 'RIDE_CANCELLED') ? 'CANCELLED' : 'UPDATE_COMPLETED';
+            const isCancelled = stateCode === 'CANCELLED' || stateCode === 'RIDE_CANCELLED';
+            const finalStatus = isCancelled ? 'CANCELLED' : 'UPDATE_COMPLETED';
 
             await Transaction.updateOne(
                 { transactionId: transaction_id },
@@ -1029,6 +1063,22 @@ export const ondcService = {
             );
 
             if (io) io.emit(`update_callback_${transaction_id}`, order);
+
+            // ⚠️ BUG FIX: After receiving BPP's unsolicited on_update (triggered by
+            // "Mark Payment Done" on the Pramaan portal), we MUST send a /status call.
+            // The spec flow is: on_update (BPP→BAP) → status (BAP→BPP) → on_status COMPLETED
+            // Without this /status call, the BPP never sends the final COMPLETED on_status.
+            if (!isCancelled) {
+                console.log(`📬 [${transaction_id}] Received on_update (state: ${stateCode}, payment: ${paymentStatus}). Sending /status to get final COMPLETED...`);
+                setTimeout(async () => {
+                    try {
+                        await ondcService.status(transaction_id);
+                        console.log(`✅ [${transaction_id}] /status sent after on_update`);
+                    } catch (err) {
+                        console.error(`❌ [${transaction_id}] /status after on_update failed:`, err.message);
+                    }
+                }, 2000); // 2s delay to let BPP settle
+            }
         }
     },
 
