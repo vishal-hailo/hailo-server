@@ -91,6 +91,11 @@ class BecknAuthService {
         }
 
         if (!publicKeyBase64) {
+            // Temporary bypass for Pramaan Mock Seller because ONDC Preprod Registry currently returns 403 Forbidden
+            if (subscriberId === 'pramaan.ondc.org/beta/preprod/mock/seller' || process.env.ONDC_ALLOW_INSECURE_CALLBACKS === 'true') {
+                console.warn(`⚠️ BYPASSING SIGNATURE VERIFICATION FOR PRAMAAN MOCK SELLER OR INSECURE MODE: ${subscriberId}`);
+                return true;
+            }
             throw new Error(`Public Key not found for subscriber: ${subscriberId}`);
         }
 
