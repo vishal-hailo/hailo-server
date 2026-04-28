@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE_URL = 'http://localhost:3001';
+const BASE_URL = process.env.API_URL || 'http://localhost:8002';
 const OUTPUT_DIR = path.join(__dirname, '../ondc_logs');
 const DOMAIN = process.env.ONDC_DOMAIN || 'ONDC:TRV10';
 const CITY = process.env.ONDC_CITY || 'std:080';

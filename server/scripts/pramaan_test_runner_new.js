@@ -32,11 +32,11 @@ async function runFlow() {
     console.log("\n📦 Running SEARCH");
 
     const search = await axios.post(`${BASE_URL}/search`, {
-      latitude: Number(process.env.SEARCH_LAT || 19.0760),
-      longitude: Number(process.env.SEARCH_LNG || 72.8777),
+      latitude: Number(process.env.SEARCH_LAT || 12.9716),
+      longitude: Number(process.env.SEARCH_LNG || 77.5946),
       destination: {
-        latitude: Number(process.env.DEST_LAT || 19.0544),
-        longitude: Number(process.env.DEST_LNG || 72.8406)
+        latitude: Number(process.env.DEST_LAT || 12.2958),
+        longitude: Number(process.env.DEST_LNG || 76.6394)
       }
     });
     const transactionId = search.data?.transactionId;

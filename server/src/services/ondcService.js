@@ -39,6 +39,16 @@ async function isDuplicateCallbackEvent(context = {}) {
 
 export const ondcService = {
 
+    /**
+     * Helper to safely construct URLs by removing trailing slashes.
+     */
+    buildUrl(baseUrl, endpoint) {
+        if (!baseUrl) return endpoint;
+        const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+        const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        return `${cleanBase}${cleanEndpoint}`;
+    },
+
     setSocketIo(socketIo) {
         io = socketIo;
     },
@@ -380,7 +390,7 @@ export const ondcService = {
                 console.log('🚧 ONDC_MOCK: Skipping Select Call to BPP');
                 setTimeout(() => this.simulateOnSelect(transactionId, item), 1000);
             } else {
-                const response = await axios.post(`${targetBppUri}/select`, payload, {
+                const response = await axios.post(ondcService.buildUrl(targetBppUri, '/select'), payload, {
                     headers: {
                         'Authorization': authHeader,
                         'Content-Type': 'application/json'
@@ -552,7 +562,7 @@ export const ondcService = {
                 console.log('🚧 ONDC_MOCK: Skipping Init Call to BPP');
                 setTimeout(() => this.simulateOnInit(transactionId, selectedItem), 1000);
             } else {
-                await axios.post(`${selectedItem.bppUri}/init`, payload, {
+                await axios.post(ondcService.buildUrl(selectedItem.bppUri, '/init'), payload, {
                     headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
                 });
             }
@@ -697,7 +707,7 @@ export const ondcService = {
                 console.log('🚧 ONDC_MOCK: Skipping Confirm Call to BPP');
                 setTimeout(() => this.simulateOnConfirm(transactionId), 1000);
             } else {
-                await axios.post(`${selectedItem.bppUri}/confirm`, payload, {
+                await axios.post(ondcService.buildUrl(selectedItem.bppUri, '/confirm'), payload, {
                     headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
                 });
             }
@@ -751,18 +761,21 @@ export const ondcService = {
         if (activeStatusPollers.has(transactionId)) return;
 
         console.log(`🔄 Starting periodic status polling for ${transactionId}...`);
+        let retryCount = 0;
+        const MAX_RETRIES = 30; // 5 minutes max
         const intervalId = setInterval(async () => {
+            retryCount++;
             try {
                 const transaction = await Transaction.findOne({ transactionId });
-                if (!transaction || ['COMPLETED', 'CANCELLED'].includes(transaction.status)) {
-                    console.log(`⏹️ Stopping periodic status polling for ${transactionId} (Status: ${transaction?.status || 'NOT_FOUND'})`);
+                if (!transaction || ['COMPLETED', 'CANCELLED'].includes(transaction.status) || retryCount >= MAX_RETRIES) {
+                    console.log(`⏹️ Stopping periodic status polling for ${transactionId} (Status: ${transaction?.status || 'NOT_FOUND'}, Retries: ${retryCount})`);
                     clearInterval(intervalId);
                     activeStatusPollers.delete(transactionId);
                     return;
                 }
 
                 await this.status(transactionId);
-                console.log(`📡 Periodic status poll sent for ${transactionId}`);
+                console.log(`📡 Periodic status poll sent for ${transactionId} (Attempt ${retryCount}/${MAX_RETRIES})`);
             } catch (err) {
                 console.error(`❌ Periodic status poll failed for ${transactionId}:`, err.message);
             }
@@ -819,7 +832,7 @@ export const ondcService = {
                 // Trigger a mock status update logic
                 this.simulateOnStatus(transaction);
             } else {
-                await axios.post(`${selectedItem.bppUri}/status`, payload, {
+                await axios.post(ondcService.buildUrl(selectedItem.bppUri, '/status'), payload, {
                     headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
                 });
             }
@@ -878,7 +891,7 @@ export const ondcService = {
             // "Mark Payment Done" action triggers an on_update + final status poll.
             // If we treat RIDE_ENDED as COMPLETED here, the background poller stops
             // and we never catch the real COMPLETED on_status. Keep polling until COMPLETED.
-            const isCompleted = stateCode === 'COMPLETED';
+            const isCompleted = stateCode === 'COMPLETED' || order.state === 'Completed';
             const isRideEnded = stateCode === 'RIDE_ENDED';
 
             // Only stop the poller when BPP actually confirms COMPLETED state.
@@ -1021,7 +1034,7 @@ export const ondcService = {
 
             await Transaction.updateOne({ transactionId }, { status: 'UPDATE_INITIATED' });
 
-            const response = await axios.post(`${targetBppUri}/update`, payload, {
+            const response = await axios.post(ondcService.buildUrl(targetBppUri, '/update'), payload, {
                 headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
             });
 
@@ -1129,7 +1142,7 @@ export const ondcService = {
                 payload, headers: { Authorization: authHeader }
             });
 
-            const response = await axios.post(`${targetBppUri}/rating`, payload, {
+            const response = await axios.post(ondcService.buildUrl(targetBppUri, '/rating'), payload, {
                 headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
             });
 
@@ -1201,7 +1214,7 @@ export const ondcService = {
             if (process.env.ONDC_MOCK === 'true') {
                 console.log('🚧 ONDC_MOCK: Skipping Track Call to BPP');
             } else {
-                const response = await axios.post(`${selectedItem.bppUri}/track`, payload, {
+                const response = await axios.post(ondcService.buildUrl(selectedItem.bppUri, '/track'), payload, {
                     headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
                 });
                 if (response.data?.message?.ack?.status === 'NACK') {
@@ -1300,7 +1313,7 @@ export const ondcService = {
                 console.log('🚧 ONDC_MOCK: Skipping Cancel Call');
                 this.simulateOnCancel(transactionId);
             } else {
-                await axios.post(`${selectedItem.bppUri}/cancel`, payload, {
+                await axios.post(ondcService.buildUrl(selectedItem.bppUri, '/cancel'), payload, {
                     headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
                 });
             }
