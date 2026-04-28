@@ -123,18 +123,17 @@ async function runFlow() {
 
     await sleep(5000);
 
-
-    console.log("\n📦 Running STATUS");
-
-    const statusPayload = {
-      transactionId
-    };
-
-    await axios.post(`${BASE_URL}/status`, statusPayload);
-
-    console.log("✅ Status sent");
-
-    console.log("\n🎉 FLOW 1a COMPLETED\n");
+    console.log("\n=======================================================");
+    console.log("🎉 FLOW 1a SCRIPT EXECUTED!");
+    console.log("=======================================================");
+    console.log("⚠️  CRITICAL NEXT STEPS TO GET THE GREEN TICK:");
+    console.log("1. Do NOT download the logs yet! Your HailO backend is now polling /status every 10 seconds.");
+    console.log("2. Go back to your browser and look at the TOP of the Pramaan Dashboard.");
+    console.log("3. Click the 'Participant Portal' link in the top menu bar.");
+    console.log("4. Find this transaction and manually advance the ride to RIDE_ENDED (if not automatic).");
+    console.log("5. Click 'Mark Payment Done'.");
+    console.log("6. Only after doing this will the flow be marked as COMPLETED!");
+    console.log("=======================================================\n");
 
   } catch (error) {
     // #region agent log
