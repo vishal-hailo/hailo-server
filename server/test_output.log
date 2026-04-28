@@ -1,0 +1,8 @@
+
+🚀 Starting HAPPY PATH Simulation...
+1. Searching...
+Simulation Failed: Request failed with status code 500
+Data: {
+  "error": "Failed to initiate ONDC search"
+}
+Status: 500
