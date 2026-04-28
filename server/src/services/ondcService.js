@@ -191,7 +191,7 @@ export const ondcService = {
         if (providers && providers.length > 0) {
             // Normalize results
             const newResults = providers.flatMap(provider =>
-                provider.items.map(item => ({
+                (provider.items || []).map(item => ({
                     id: item.id,
                     providerId: provider.id,
                     providerName: provider.descriptor?.name,
