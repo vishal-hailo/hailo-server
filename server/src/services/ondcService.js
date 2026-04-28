@@ -929,39 +929,8 @@ export const ondcService = {
                 console.log(`📡 Emitted Status update for ${transaction_id}: ${stateCode} (Status: ${finalStatus})`);
             }
 
-            // ─── OTP Claim: RIDE_ARRIVED_PICKUP → trigger RIDE_STARTED ───────────
-            // The Mock BPP will NOT advance past RIDE_ARRIVED_PICKUP until the BAP
-            // sends an /update with the OTP authorization status set to CLAIMED.
-            if (stateCode === 'RIDE_ARRIVED_PICKUP' && transaction.fulfillmentStatus !== 'RIDE_ARRIVED_PICKUP') {
-                const otpToken = fulfillment?.stops?.find(s => s.type === 'START')?.authorization?.token;
-                const fulfillmentId = fulfillment?.id;
-                if (otpToken && fulfillmentId) {
-                    console.log(`🔑 RIDE_ARRIVED_PICKUP detected for ${transaction_id}. Sending OTP claim UPDATE in 2s (token: ${otpToken})...`);
-                    setTimeout(async () => {
-                        try {
-                            const otpUpdateDetails = {
-                                fulfillments: [{
-                                    id: fulfillmentId,
-                                    stops: [{
-                                        type: 'START',
-                                        authorization: {
-                                            type: 'OTP',
-                                            token: otpToken,
-                                            status: 'CLAIMED'
-                                        }
-                                    }]
-                                }]
-                            };
-                            await ondcService.update(transaction_id, otpUpdateDetails);
-                            console.log(`✅ OTP claim UPDATE sent for ${transaction_id}`);
-                        } catch (err) {
-                            console.error(`❌ OTP claim UPDATE failed for ${transaction_id}:`, err.message);
-                        }
-                    }, 2000);
-                } else {
-                    console.warn(`⚠️ RIDE_ARRIVED_PICKUP but no OTP token found in fulfillment stops for ${transaction_id}`);
-                }
-            }
+            // The mock BPP for Pramaan TRV10 automatically advances states without requiring /update.
+            // Removed automatic /update for OTP claim because it causes a 404 No Such Route Supported.
 
             if (isRideEnded) {
                 // RIDE_ENDED state: the background poller is still running (because DB status is 'RIDE_ENDED',
