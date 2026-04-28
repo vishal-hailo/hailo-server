@@ -109,6 +109,21 @@ async function runFlow() {
     await sleep(5000);
 
 
+    console.log("\n📦 Running TRACK");
+
+    const trackPayload = {
+      transactionId
+    };
+
+    await axios.post(`${BASE_URL}/track`, trackPayload);
+
+    console.log("✅ Track sent");
+
+    console.log("⏳ Waiting for on_track...");
+
+    await sleep(5000);
+
+
     console.log("\n📦 Running STATUS");
 
     const statusPayload = {
