@@ -35,8 +35,8 @@ async function runFlow() {
       latitude: Number(process.env.SEARCH_LAT || 12.9716),
       longitude: Number(process.env.SEARCH_LNG || 77.5946),
       destination: {
-        latitude: Number(process.env.DEST_LAT || 12.2958),
-        longitude: Number(process.env.DEST_LNG || 76.6394)
+        latitude: Number(process.env.DEST_LAT || 12.9720), // Just 400m away
+        longitude: Number(process.env.DEST_LNG || 77.5950)
       }
     });
     const transactionId = search.data?.transactionId;
